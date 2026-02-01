@@ -7,51 +7,51 @@ LockInPlanner is a simple app to plan your day. You can create/update/delete tas
 ## Features
 * **Tasks** can be created from various places, and are displayed on a timeline showing the hours of the present day. These tasks are also displayed on the calendar page, allowing you to see tasks for any given date. Tasks have the following attributes: Name, Colour, Start Time, End Time, Date, Repeatability, Description.
 <p align="center">
-  <img src="screenshots/Timeline.jpg" alt="Timeline Appearance" />
+  <img src="screenshots/Timeline.jpg" alt="Timeline Appearance" width="300" />
   <br>
   <em>Timeline Appearance</em>
 </p>
 <p align="center">
-  <img src="screenshots/TaskCreation.jpg" alt="Task Creation" />
+  <img src="screenshots/TaskCreation.jpg" alt="Task Creation" width="300" />
   <br>
   <em>Task Creation</em>
 </p>
 <p align="center">
-  <img src="screenshots/TaskView.jpg" alt="Task View" />
+  <img src="screenshots/TaskView.jpg" alt="Task View" width="300" />
   <br>
   <em>Task View</em>
 </p>
 <p align="center">
-  <img src="screenshots/Calendar.jpg" alt="Calendar" />
+  <img src="screenshots/Calendar.jpg" alt="Calendar" width="300" />
   <br>
   <em>Calendar</em>
 </p>
 <p align="center">
-  <img src="screenshots/DayView.jpg" alt="Calendar Day View" />
+  <img src="screenshots/DayView.jpg" alt="Calendar Day View" width="300" />
   <br>
   <em>Calendar Day View</em>
 </p>
 
 * **Checklists** are simple lists that contain objectives that can be completed.
 <p align="center">
-  <img src="screenshots/Checklists.jpg" alt="Checklists" />
+  <img src="screenshots/Checklists.jpg" alt="Checklists" width="300" />
   <br>
   <em>Checklists</em>
 </p>
 <p align="center">
-  <img src="screenshots/ChecklistCreation.jpg" alt="Checklist Creation" />
+  <img src="screenshots/ChecklistCreation.jpg" alt="Checklist Creation" width="300" />
   <br>
   <em>Checklist Creation</em>
 </p>
 <p align="center">
-  <img src="screenshots/ChecklistView.jpg" alt="Checklist View" />
+  <img src="screenshots/ChecklistView.jpg" alt="Checklist View" width="300" />
   <br>
   <em>Checklist View</em>
 </p>
 
 * **Customisation** options are available in the settings.
 <p align="center">
-  <img src="screenshots/Preferences.jpg" alt="Preferences" />
+  <img src="screenshots/Preferences.jpg" alt="Preferences" width="300" />
   <br>
   <em>Preferences</em>
 </p>
