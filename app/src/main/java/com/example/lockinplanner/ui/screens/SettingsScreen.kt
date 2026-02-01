@@ -202,6 +202,24 @@ fun SettingsScreen(
         )
     }
 
+    // About Section
+    SectionHeader("About")
+    
+    var showLicenseDialog by remember { mutableStateOf(false) }
+    
+    OutlinedButton(
+        onClick = { showLicenseDialog = true },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text("Open Source Licenses")
+    }
+
+    if (showLicenseDialog) {
+        com.example.lockinplanner.ui.components.LicenseDialog(
+            onDismiss = { showLicenseDialog = false }
+        )
+    }
+
         if (showExportDialog) {
             ExportDialog(
                 onDismiss = { showExportDialog = false },
