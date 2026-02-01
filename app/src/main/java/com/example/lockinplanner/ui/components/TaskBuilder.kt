@@ -187,7 +187,7 @@ fun TaskBuilder(
                     .verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(if (taskToEdit == null) "New Task" else "Edit Task", style = MaterialTheme.typography.titleLarge)
+                // Removed duplicate header per user request
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
