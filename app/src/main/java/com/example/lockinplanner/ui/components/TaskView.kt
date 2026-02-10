@@ -78,7 +78,7 @@ fun TaskView(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(task.task.name, style = MaterialTheme.typography.headlineMedium)
+                    Text(task.task.name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
                     Row {
                          IconButton(onClick = onEdit) {
                             Icon(Icons.Default.Edit, contentDescription = "Edit")

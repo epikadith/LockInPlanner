@@ -252,74 +252,36 @@ fun TimelineScreen(
                                 taskStart < hour + 1 && taskEnd > hour
                             }
                             
-                            val columnMap = tasksInHour.associateBy { it.columnIndex }
+                            
+                            val columnMap = tasksInHour.groupBy { it.columnIndex }
+                            val maxColumns = (positionedTasks.maxOfOrNull { it.columnIndex } ?: -1) + 1
+                            val totalColumns = maxOf(3, maxColumns)
 
                             for (i in 0 until totalColumns) {
                                 Box(modifier = Modifier.width(columnWidth).fillMaxHeight().padding(horizontal = 2.dp)) {
-                                    val positionedTask = columnMap[i]
-                                    if (positionedTask != null) {
+                                    val tasksInCol = columnMap[i] ?: emptyList()
+                                    tasksInCol.forEach { positionedTask ->
                                         val task = positionedTask.task
                                         // Calculate offsets for this specific hour block
                                         
-                                        // Start Fraction within this hour (0.0 to 1.0)
-                                        // If task starts before this hour, it starts at 0.0 relative to this hour.
-                                        // If task starts in this hour, it starts at minute/60.
                                         val startFraction = if (task.startHour == hour) task.startMinute / 60f else 0f
-                                        
-                                        // End Fraction within this hour (0.0 to 1.0)
-                                        // If task ends after this hour, it ends at 1.0.
-                                        // If task ends in this hour, it ends at minute/60.
-                                        // Special case: if task ends exactly at hour:00? 
-                                        // e.g. 5:00 end means endHour=5, endMinute=0. 
-                                        // In loop for hour=4, taskEnd > 4 is true (5 > 4).
-                                        // In loop for hour=4, endFraction: task.endHour (5) != hour (4) -> 1f. Correct.
-                                        // In loop for hour=5, taskEnd (5) > 5 is FALSE. So it won't render in hour 5. Correct.
-                                        // What if end is 4:30?
-                                        // Hour 4: endHour(4) == hour(4) -> 30/60 = 0.5. Correct.
                                         val endFraction = if (task.endHour == hour) task.endMinute / 60f else 1f
                                         
                                         val topOffset = 80.dp * startFraction
                                         val height = 80.dp * (endFraction - startFraction)
                                         
-                                        val shape = when {
-                                            task.startHour == hour && task.endHour == hour && task.startMinute == 0 && task.endMinute == 0 -> RoundedCornerShape(8.dp) // Full hour
-                                            task.startHour == hour && (task.endHour > hour || (task.endHour == hour && task.endMinute > 0)) -> RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
-                                            // Logic for rounded corners is tricky with minute splits. 
-                                            // Simplification: Top rounded if it STARTS in this hour (start > hour or start==hour).
-                                            // Bottom rounded if it ENDS in this hour.
-                                            // Actually: 
-                                            // Top rounded if startHour == hour. 
-                                            // Bottom rounded if endHour == hour.
-                                             else -> RoundedCornerShape(0.dp)
-                                        }
-
                                         // Apply offset and height
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(top = topOffset)
                                                 .height(height)
-                                                .clip(RoundedCornerShape(8.dp)) // Just round everything for looks? Or rely on logic.
-                                                // User logic: "make it go to the nearest 1/6".
-                                                // Visual approximation implied.
-                                                // Let's use specific corners if we want continuous look, or just rounded blocks.
-                                                // If we stick to continuous:
-                                                // .clip(if (startFraction > 0) RoundedCornerShape(topStart=8.dp, topEnd=8.dp) else ...)
-                                                // Simpler: Just round all corners for now as discrete blocks usually look okay, 
-                                                // OR stick to the original logic:
-                                                .clip(
-                                                    if (startFraction > 0 && endFraction < 1f) RoundedCornerShape(8.dp)
-                                                    else if (startFraction > 0) RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
-                                                    else if (endFraction < 1f) RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp)
-                                                    else RoundedCornerShape(0.dp)
-                                                )
+                                                .clip(RoundedCornerShape(8.dp))
                                                 .background(task.color)
                                                 .padding(4.dp)
                                                 .clickable { selectedTask = task },
                                         ) {
-                                            if (startFraction == 0f || height > 20.dp) { // Show text if enough space or at top
-                                                 // Only show text if it's the start block OR significant height?
-                                                 // Best: Show if it's the start block.
+                                            if (startFraction == 0f || height > 20.dp) { 
                                                  if (task.startHour == hour) {
                                                     Box {
                                                         Text(
@@ -372,26 +334,37 @@ private fun calculatePositionedTasks(tasks: List<Task>): List<PositionedTask> {
 
     val sortedTasks = splitTasks.sortedWith(compareBy<Task> { it.startHour * 60 + it.startMinute }
         .thenByDescending { (it.endHour * 60 + it.endMinute) - (it.startHour * 60 + it.startMinute) })
-    val columns = mutableListOf<Int>()
+    
+    // Columns now store a list of tasks placed in that column to check for overlaps
+    val columns = mutableListOf<MutableList<Task>>()
     val result = mutableListOf<PositionedTask>()
 
     for (task in sortedTasks) {
         var placed = false
+        val taskStartMins = task.startHour * 60 + task.startMinute
+        val taskEndMins = task.endHour * 60 + task.endMinute
+
         for (i in columns.indices) {
-            // Check if column is free at task start time (minutes)
-            // columns[i] stores the end time of the last task in minutes? 
-            // Currently it stores 'endHour'. I need to store 'endTotalMinutes'.
-            // Wait, logic above was: `columns[i] <= task.startHour`.
-            // Now `columns` should store minutes.
-            if (columns[i] <= task.startHour * 60 + task.startMinute) {
-                columns[i] = task.endHour * 60 + task.endMinute
+            // Check if this task overlaps with ANY task in column[i]
+            val hasOverlap = columns[i].any { existingTask ->
+                val existingStart = existingTask.startHour * 60 + existingTask.startMinute
+                val existingEnd = existingTask.endHour * 60 + existingTask.endMinute
+                
+                // Intersection logic: max(start1, start2) < min(end1, end2)
+                kotlin.math.max(taskStartMins, existingStart) < kotlin.math.min(taskEndMins, existingEnd)
+            }
+
+            if (!hasOverlap) {
+                columns[i].add(task)
                 result.add(PositionedTask(task, i))
                 placed = true
                 break
             }
         }
+        
         if (!placed) {
-            columns.add(task.endHour * 60 + task.endMinute)
+            // Create new column
+            columns.add(mutableListOf(task))
             result.add(PositionedTask(task, columns.lastIndex))
         }
     }

@@ -78,28 +78,39 @@ fun TaskBuilder(
         var taskName by remember { mutableStateOf(taskToEdit?.name ?: "") }
         var taskDescription by remember { mutableStateOf(taskToEdit?.description ?: "") }
         val colors = listOf(Color.Red, Color.Blue, Color.Green, Color.Yellow, Color.Magenta, Color.Cyan)
-        var selectedColor by remember { mutableStateOf(colors.find { it.toArgb() == taskToEdit?.color?.toArgb() } ?: colors.first()) }
+        var selectedColor by remember { mutableStateOf(colors.find { it.toArgb() == taskToEdit?.color?.toArgb() } ?: taskToEdit?.color ?: colors.first()) }
 
         // Initialize Time Text
+        // Initialize Time Text
         val initialStartText = taskToEdit?.let { 
-             String.format(Locale.US, "%02d:%02d", it.startHour, it.startMinute) 
+             if (it.isFloating) {
+                 val totalMins = it.startTime.toInt()
+                 String.format(Locale.US, "%02d:%02d", totalMins / 60, totalMins % 60)
+             } else {
+                 String.format(Locale.US, "%02d:%02d", it.startHour, it.startMinute) 
+             }
         } ?: initialStartTime ?: ""
         
         val initialEndText = taskToEdit?.let {
-             String.format(Locale.US, "%02d:%02d", it.endHour, it.endMinute)
+             if (it.isFloating) {
+                 val totalMins = it.endTime.toInt()
+                 String.format(Locale.US, "%02d:%02d", totalMins / 60, totalMins % 60)
+             } else {
+                 String.format(Locale.US, "%02d:%02d", it.endHour, it.endMinute)
+             }
         } ?: initialEndTime ?: ""
 
         var startTimeText by remember { mutableStateOf(initialStartText) }
         var endTimeText by remember { mutableStateOf(initialEndText) }
 
         val startTimePickerState = rememberTimePickerState(
-            initialHour = startTimeText.substringBefore(":").toIntOrNull() ?: 0,
-            initialMinute = startTimeText.substringAfter(":").toIntOrNull() ?: 0,
+            initialHour = (startTimeText.substringBefore(":").toIntOrNull() ?: 0).coerceIn(0, 23),
+            initialMinute = (startTimeText.substringAfter(":").toIntOrNull() ?: 0).coerceIn(0, 59),
             is24Hour = is24h
         )
         val endTimePickerState = rememberTimePickerState(
-            initialHour = endTimeText.substringBefore(":").toIntOrNull() ?: 0,
-            initialMinute = endTimeText.substringAfter(":").toIntOrNull() ?: 0,
+            initialHour = (endTimeText.substringBefore(":").toIntOrNull() ?: 0).coerceIn(0, 23),
+            initialMinute = (endTimeText.substringAfter(":").toIntOrNull() ?: 0).coerceIn(0, 59),
             is24Hour = is24h
         )
         
@@ -451,7 +462,7 @@ fun TaskBuilder(
 
                         val task = Task(
                             id = taskToEdit?.id ?: 0,
-                            name = taskName,
+                            name = taskName.trim(),
                             description = taskDescription.takeIf { it.isNotBlank() },
                             color = selectedColor,
                             repeatability = repeatability,

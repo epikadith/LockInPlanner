@@ -24,6 +24,7 @@ class NotificationManagerHelper(private val context: Context) {
             ).apply {
                 description = "Reminders for scheduled tasks"
                 enableVibration(true)
+                // Default sound behavior respects Ringer Mode
             }
 
             val lowChannel = NotificationChannel(
@@ -46,6 +47,7 @@ class NotificationManagerHelper(private val context: Context) {
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             // .setContentIntent pendingIntent for opening app
         
         // Use NotificationManagerCompat for compatibility
