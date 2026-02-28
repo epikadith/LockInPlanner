@@ -42,4 +42,13 @@ interface ChecklistDao {
 
     @Query("DELETE FROM checklists")
     suspend fun deleteAllChecklists()
+
+    @Transaction
+    @Query("""
+        SELECT * FROM checklists 
+        WHERE name LIKE '%' || :searchQuery || '%' 
+        OR id IN (SELECT checklistId FROM objectives WHERE text LIKE '%' || :searchQuery || '%') 
+        ORDER BY isCompleted ASC, createdAt DESC
+    """)
+    fun searchChecklists(searchQuery: String): Flow<List<ChecklistWithObjectives>>
 }

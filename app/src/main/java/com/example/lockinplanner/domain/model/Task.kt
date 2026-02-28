@@ -24,7 +24,8 @@ data class Task(
     val startHour: Int = 0,
     val startMinute: Int = 0,
     val endHour: Int = 0,
-    val endMinute: Int = 0
+    val endMinute: Int = 0,
+    val isThemeColor: Boolean = false
 )
 
 fun Task.toEntity(): TaskEntity {
@@ -38,7 +39,8 @@ fun Task.toEntity(): TaskEntity {
         isFloating = isFloating,
         startTime = startTime,
         endTime = endTime,
-        reminders = reminders
+        reminders = reminders,
+        isThemeColor = isThemeColor
     )
 }
 
@@ -87,6 +89,7 @@ fun TaskEntity.toDomain(): Task {
         startHour = sH,
         startMinute = sM,
         endHour = eH,
-        endMinute = eM
+        endMinute = eM,
+        isThemeColor = isThemeColor
     )
 }

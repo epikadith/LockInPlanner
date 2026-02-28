@@ -23,6 +23,11 @@ class ChecklistRepository(private val checklistDao: ChecklistDao) {
         checklistDao.insertChecklist(checklist)
     }
 
+    suspend fun restoreChecklist(checklistWithObjectives: ChecklistWithObjectives) {
+        checklistDao.insertChecklist(checklistWithObjectives.checklist)
+        checklistDao.insertObjectives(checklistWithObjectives.objectives)
+    }
+
     suspend fun insertObjective(objective: ObjectiveEntity) {
         checklistDao.insertObjective(objective)
     }
@@ -49,5 +54,9 @@ class ChecklistRepository(private val checklistDao: ChecklistDao) {
 
     suspend fun deleteAllChecklists() {
         checklistDao.deleteAllChecklists()
+    }
+
+    fun searchChecklists(query: String): Flow<List<ChecklistWithObjectives>> {
+        return checklistDao.searchChecklists(query)
     }
 }

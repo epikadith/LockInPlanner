@@ -79,7 +79,8 @@ fun CalendarScreen(
                     startHour = s / 60,
                     startMinute = s % 60,
                     endHour = e / 60,
-                    endMinute = e % 60
+                    endMinute = e % 60,
+                    isThemeColor = task.isThemeColor
                 )
             } else {
                 // Fixed: Convert UTC timestamp to Selected Timezone Hour/Minute
@@ -96,7 +97,8 @@ fun CalendarScreen(
                     startHour = sH,
                     startMinute = sM,
                     endHour = eH,
-                    endMinute = eM
+                    endMinute = eM,
+                    isThemeColor = task.isThemeColor
                 )
             }
         }
@@ -111,6 +113,10 @@ fun CalendarScreen(
     var selectedDay by remember { mutableStateOf<CalendarDay?>(null) }
     var selectedTask by remember { mutableStateOf<Task?>(null) }
     var taskToEdit by remember { mutableStateOf<Task?>(null) }
+    
+    // Undo State
+    var deletedTask by remember { mutableStateOf<Task?>(null) }
+    var showUndoSnackbar by remember { mutableStateOf(false) }
     
     // DateFormat should also respect the selected TimeZone for displaying "December 1, 2024" etc.
     // Actually current code uses 'dateFormat' for popup title.
@@ -135,7 +141,8 @@ fun CalendarScreen(
             dateFormat = dateFormatString,
             is24h = is24h,
             timeZone = timeZone,
-            taskToEdit = taskToEdit
+            taskToEdit = taskToEdit,
+            hapticsEnabled = userPreferences.hapticsEnabled
         )
     }
 
@@ -194,6 +201,10 @@ fun CalendarScreen(
             task = com.example.lockinplanner.ui.components.PositionedTask(task, 0), // PositionedTask wrapper needed for TaskView
             onDismiss = { selectedTask = null },
             onDelete = {
+                if (userPreferences.undoEnabled) {
+                    deletedTask = task
+                    showUndoSnackbar = true
+                }
                 viewModel.delete(task)
                 selectedTask = null
             },
@@ -319,9 +330,16 @@ fun CalendarScreen(
                 } else {
                     emptyList()
                 }
+                val isToday = day.date?.let { 
+                    val today = Calendar.getInstance(timeZone)
+                    it.get(Calendar.YEAR) == today.get(Calendar.YEAR) &&
+                    it.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)
+                } ?: false
+
                 DayCell(
                     day = day, 
                     tasks = dayTasks, 
+                    isToday = isToday,
                     onClick = { if (day.date != null) selectedDay = day }
                 )
             }
@@ -330,7 +348,7 @@ fun CalendarScreen(
 }
 
 @Composable
-fun DayCell(day: CalendarDay, tasks: List<Task>, onClick: () -> Unit) {
+fun DayCell(day: CalendarDay, tasks: List<Task>, isToday: Boolean = false, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .aspectRatio(1f)
@@ -343,7 +361,21 @@ fun DayCell(day: CalendarDay, tasks: List<Task>, onClick: () -> Unit) {
                 modifier = Modifier.fillMaxSize().padding(2.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(text = day.dayOfMonth.toString(), style = MaterialTheme.typography.bodySmall)
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(
+                            color = if (isToday) MaterialTheme.colorScheme.primary else Color.Transparent,
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = day.dayOfMonth.toString(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isToday) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                    )
+                }
                 Spacer(modifier = Modifier.height(2.dp))
                 // Task Indicators
                 tasks.take(4).forEach { task ->
@@ -407,7 +439,7 @@ fun DayView(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .border(2.dp, task.color, RoundedCornerShape(8.dp))
+                                .border(2.dp, if (task.isThemeColor) MaterialTheme.colorScheme.primary else task.color, RoundedCornerShape(8.dp))
                                 .clickable { onTaskClick(task) }
                                 .padding(12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,

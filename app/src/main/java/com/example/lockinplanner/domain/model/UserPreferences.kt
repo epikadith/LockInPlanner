@@ -13,5 +13,10 @@ data class UserPreferences(
     val notificationsEnabled: Boolean = true,
     val notifyDaily: Boolean = true,
     val notifyCustom: Boolean = true,
-    val notifySingle: Boolean = true
+    val notifySingle: Boolean = true,
+    // Haptics
+    val hapticsEnabled: Boolean = true,
+    // Undo Deletion
+    val undoEnabled: Boolean = true,
+    val undoDuration: Int = 5
 )

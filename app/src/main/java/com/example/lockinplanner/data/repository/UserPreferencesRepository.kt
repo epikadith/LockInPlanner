@@ -32,6 +32,13 @@ class UserPreferencesRepository(private val context: Context) {
         val NOTIFY_DAILY = booleanPreferencesKey("notify_daily")
         val NOTIFY_CUSTOM = booleanPreferencesKey("notify_custom")
         val NOTIFY_SINGLE = booleanPreferencesKey("notify_single")
+
+        // Haptics
+        val HAPTICS_ENABLED = booleanPreferencesKey("haptics_enabled")
+
+        // Undo Deletion
+        val UNDO_ENABLED = booleanPreferencesKey("undo_enabled")
+        val UNDO_DURATION = androidx.datastore.preferences.core.intPreferencesKey("undo_duration")
     }
 
     val userPreferencesFlow: Flow<UserPreferences> = context.dataStore.data
@@ -72,7 +79,10 @@ class UserPreferencesRepository(private val context: Context) {
                 notificationsEnabled = preferences[PreferencesKeys.NOTIFICATIONS_ENABLED] ?: true,
                 notifyDaily = preferences[PreferencesKeys.NOTIFY_DAILY] ?: true,
                 notifyCustom = preferences[PreferencesKeys.NOTIFY_CUSTOM] ?: true,
-                notifySingle = preferences[PreferencesKeys.NOTIFY_SINGLE] ?: true
+                notifySingle = preferences[PreferencesKeys.NOTIFY_SINGLE] ?: true,
+                hapticsEnabled = preferences[PreferencesKeys.HAPTICS_ENABLED] ?: true,
+                undoEnabled = preferences[PreferencesKeys.UNDO_ENABLED] ?: true,
+                undoDuration = preferences[PreferencesKeys.UNDO_DURATION] ?: 5
             )
         }
 
@@ -157,6 +167,24 @@ class UserPreferencesRepository(private val context: Context) {
     suspend fun updateNotifySingle(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.NOTIFY_SINGLE] = enabled
+        }
+    }
+
+    suspend fun updateHapticsEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.HAPTICS_ENABLED] = enabled
+        }
+    }
+
+    suspend fun updateUndoEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.UNDO_ENABLED] = enabled
+        }
+    }
+
+    suspend fun updateUndoDuration(duration: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.UNDO_DURATION] = duration
         }
     }
 }

@@ -37,15 +37,15 @@ class TaskRepository(
     }
 
     suspend fun insert(task: TaskEntity) {
-        taskDao.insertTask(task)
-        // Schedule Alarm
         val domainTask = task.toDomain()
+        // Always cancel existing alarms for this task ID before updating/inserting
+        alarmScheduler.cancelTaskReminders(domainTask)
+        
+        taskDao.insertTask(task)
+        // Schedule Alarm if needed
         if (domainTask.reminders.isNotEmpty()) {
             val prefs = userPreferencesRepository.userPreferencesFlow.first()
             alarmScheduler.scheduleTaskReminders(domainTask, domainTask.reminders, prefs)
-        } else {
-            // If reminders cleared, cancel existing
-            alarmScheduler.cancelTaskReminders(domainTask)
         }
     }
 
@@ -69,5 +69,17 @@ class TaskRepository(
             alarmScheduler.cancelTaskReminders(entity.toDomain())
         } 
         taskDao.deleteAllTasks()
+    }
+
+    suspend fun deletePastTasks(currentTimeMillis: Long) {
+        val pastTasks = taskDao.getPastSingleTasksSync(currentTimeMillis)
+        pastTasks.forEach { entity ->
+            alarmScheduler.cancelTaskReminders(entity.toDomain())
+        }
+        taskDao.deletePastSingleTasks(currentTimeMillis)
+    }
+
+    fun searchTasks(query: String): Flow<List<TaskEntity>> {
+        return taskDao.searchTasks(query)
     }
 }

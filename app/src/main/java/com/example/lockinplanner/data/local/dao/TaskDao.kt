@@ -39,4 +39,13 @@ interface TaskDao {
 
     @Query("DELETE FROM tasks")
     suspend fun deleteAllTasks()
+
+    @Query("SELECT * FROM tasks WHERE repeatability = 'Single' AND endTime < :currentTimeMillis")
+    suspend fun getPastSingleTasksSync(currentTimeMillis: Long): List<TaskEntity>
+
+    @Query("DELETE FROM tasks WHERE repeatability = 'Single' AND endTime < :currentTimeMillis")
+    suspend fun deletePastSingleTasks(currentTimeMillis: Long)
+
+    @Query("SELECT * FROM tasks WHERE name LIKE '%' || :searchQuery || '%' OR description LIKE '%' || :searchQuery || '%'")
+    fun searchTasks(searchQuery: String): Flow<List<TaskEntity>>
 }

@@ -93,6 +93,18 @@ class SettingsViewModel(
         userPreferencesRepository.updateNotifySingle(enabled)
     }
 
+    fun updateHapticsEnabled(enabled: Boolean) = viewModelScope.launch {
+        userPreferencesRepository.updateHapticsEnabled(enabled)
+    }
+
+    fun updateUndoEnabled(enabled: Boolean) = viewModelScope.launch {
+        userPreferencesRepository.updateUndoEnabled(enabled)
+    }
+
+    fun updateUndoDuration(duration: Int) = viewModelScope.launch {
+        userPreferencesRepository.updateUndoDuration(duration)
+    }
+
     // --- Export Logic ---
     fun exportData(
         uri: android.net.Uri, 
@@ -173,6 +185,12 @@ class SettingsViewModel(
         if (deleteChecklists) {
             checklistRepository.deleteAllChecklists()
         }
+        launch(kotlinx.coroutines.Dispatchers.Main) { onResult() }
+    }
+
+    fun deletePastTasks(onResult: () -> Unit) = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        val currentTime = System.currentTimeMillis()
+        taskRepository.deletePastTasks(currentTime)
         launch(kotlinx.coroutines.Dispatchers.Main) { onResult() }
     }
 }

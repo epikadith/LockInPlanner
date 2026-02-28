@@ -95,6 +95,39 @@ fun SettingsScreen(
             onCheckedChange = { viewModel.updateConfirmDeletion(it) }
         )
 
+        // Haptics
+        SettingsToggle(
+            label = "Haptic Feedback",
+            checked = userPreferences.hapticsEnabled,
+            onCheckedChange = { viewModel.updateHapticsEnabled(it) }
+        )
+
+        // Undo Deletion
+        SettingsToggle(
+            label = "Undo Delete Snackbar",
+            checked = userPreferences.undoEnabled,
+            onCheckedChange = { viewModel.updateUndoEnabled(it) }
+        )
+
+        if (userPreferences.undoEnabled) {
+            Column(modifier = Modifier.padding(start = 16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Duration (Seconds)")
+                    Text("${userPreferences.undoDuration}s")
+                }
+                androidx.compose.material3.Slider(
+                    value = userPreferences.undoDuration.toFloat(),
+                    onValueChange = { viewModel.updateUndoDuration(it.toInt()) },
+                    valueRange = 1f..20f,
+                    steps = 18
+                )
+            }
+        }
+
         // Notifications Section
         SectionHeader("Notifications")
 
@@ -180,6 +213,7 @@ fun SettingsScreen(
     Spacer(modifier = Modifier.height(16.dp))
     
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showDeletePastDialog by remember { mutableStateOf(false) }
     
     OutlinedButton(
         onClick = { showDeleteDialog = true },
@@ -191,12 +225,35 @@ fun SettingsScreen(
         Text("Delete All Data")
     }
 
+    OutlinedButton(
+        onClick = { showDeletePastDialog = true },
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.error
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text("Delete Past Tasks Only")
+    }
+
     if (showDeleteDialog) {
         DeleteDataDialog(
             onDismiss = { showDeleteDialog = false },
             onConfirm = { deleteTasks, deleteChecklists ->
                 viewModel.deleteAllData(deleteTasks, deleteChecklists) {
                     showDeleteDialog = false
+                    android.widget.Toast.makeText(context, "Deleted Selected Data", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+    }
+
+    if (showDeletePastDialog) {
+        DeletePastTasksDialog(
+            onDismiss = { showDeletePastDialog = false },
+            onConfirm = {
+                viewModel.deletePastTasks {
+                    showDeletePastDialog = false
+                    android.widget.Toast.makeText(context, "Deleted Past Tasks", android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
         )
@@ -398,6 +455,38 @@ fun DeleteDataDialog(
                             containerColor = MaterialTheme.colorScheme.error
                         ),
                         enabled = deleteTasks || deleteChecklists
+                    ) { Text("Confirm Delete") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DeletePastTasksDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("Delete Past Tasks", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.error)
+                Text(
+                    "Are you sure you want to delete all past single tasks? This action cannot be undone. Daily and Custom tasks will not be affected.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    Button(
+                        onClick = onConfirm,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        )
                     ) { Text("Confirm Delete") }
                 }
             }

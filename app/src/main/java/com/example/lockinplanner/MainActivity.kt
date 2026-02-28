@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -24,15 +25,19 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.lockinplanner.data.local.AppDatabase
 import com.example.lockinplanner.data.repository.TaskRepository
 import com.example.lockinplanner.ui.screens.TimelineScreen
+import com.example.lockinplanner.ui.screens.SearchScreen
 import com.example.lockinplanner.ui.screens.CalendarScreen
 import com.example.lockinplanner.ui.screens.ChecklistsScreen
 import com.example.lockinplanner.ui.theme.LockInPlannerTheme
+import com.example.lockinplanner.ui.utils.performLightHapticFeedback
 import com.example.lockinplanner.ui.viewmodel.CalendarViewModelFactory
+import com.example.lockinplanner.ui.viewmodel.SearchViewModelFactory
 import com.example.lockinplanner.ui.viewmodel.TimelineViewModelFactory
 
 import androidx.compose.runtime.collectAsState
@@ -81,12 +86,13 @@ class MainActivity : ComponentActivity() {
         
         val viewModelFactory = TimelineViewModelFactory(taskRepository)
         val settingsViewModelFactory = SettingsViewModelFactory(userPreferencesRepository, taskRepository, checklistRepository)
+        val searchViewModelFactory = SearchViewModelFactory(taskRepository, checklistRepository)
 
         setContent {
             val userPreferences by userPreferencesRepository.userPreferencesFlow.collectAsState(initial = UserPreferences())
             
             LockInPlannerTheme(appTheme = userPreferences.theme) {
-                LockInPlannerApp(viewModelFactory, taskRepository, settingsViewModelFactory, userPreferences)
+                LockInPlannerApp(viewModelFactory, taskRepository, settingsViewModelFactory, searchViewModelFactory, userPreferences)
             }
         }
     }
@@ -97,9 +103,11 @@ fun LockInPlannerApp(
     viewModelFactory: TimelineViewModelFactory, 
     repository: TaskRepository,
     settingsViewModelFactory: SettingsViewModelFactory,
+    searchViewModelFactory: SearchViewModelFactory,
     userPreferences: UserPreferences
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.TIMELINE) }
+    val view = LocalView.current
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
@@ -113,7 +121,10 @@ fun LockInPlannerApp(
                     },
                     label = { Text(it.label) },
                     selected = it == currentDestination,
-                    onClick = { currentDestination = it }
+                    onClick = { 
+                        view.performLightHapticFeedback(userPreferences.hapticsEnabled)
+                        currentDestination = it 
+                    }
                 )
             }
         }
@@ -134,6 +145,11 @@ fun LockInPlannerApp(
                     userPreferences = userPreferences,
                     modifier = Modifier.padding(innerPadding)
                 )
+                AppDestinations.SEARCH -> SearchScreen(
+                    viewModel = viewModel(factory = searchViewModelFactory),
+                    userPreferences = userPreferences,
+                    modifier = Modifier.padding(innerPadding)
+                )
                 AppDestinations.SETTINGS -> SettingsScreen(
                     viewModel = viewModel(factory = settingsViewModelFactory),
                     modifier = Modifier.padding(innerPadding)
@@ -149,6 +165,7 @@ enum class AppDestinations(
 ) {
     TIMELINE("Timeline", Icons.Default.List),
     CALENDAR("Calendar", Icons.Default.DateRange),
-    CHECKLISTS("Checklists", Icons.Default.Check),
+    CHECKLISTS("Lists", Icons.Default.Check),
+    SEARCH("Search", Icons.Default.Search),
     SETTINGS("Settings", Icons.Default.Settings),
 }

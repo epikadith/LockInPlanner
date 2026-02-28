@@ -22,5 +22,6 @@ data class TaskEntity(
     val isFloating: Boolean, // True = Local Time (Minutes), False = UTC (Timestamp)
     val startTime: Long, // UTC Timestamp or Minutes from Midnight
     val endTime: Long, // UTC Timestamp or Minutes from Midnight
-    val reminders: List<Int> = emptyList() // Minutes offset from start time (-10, 0, 15)
+    val reminders: List<Int> = emptyList(), // Minutes offset from start time (-10, 0, 15)
+    @androidx.room.ColumnInfo(defaultValue = "0") val isThemeColor: Boolean = false
 )

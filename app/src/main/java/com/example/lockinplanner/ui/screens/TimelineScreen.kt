@@ -38,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -46,6 +47,7 @@ import com.example.lockinplanner.domain.model.UserPreferences
 import com.example.lockinplanner.ui.components.PositionedTask
 import com.example.lockinplanner.ui.components.TaskBuilder
 import com.example.lockinplanner.ui.components.TaskView
+import com.example.lockinplanner.ui.utils.performLightHapticFeedback
 import com.example.lockinplanner.ui.viewmodel.TimelineViewModel
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -104,7 +106,8 @@ fun TimelineScreen(
                     startHour = startMins / 60,
                     startMinute = startMins % 60,
                     endHour = endMins / 60,
-                    endMinute = endMins % 60
+                    endMinute = endMins % 60,
+                    isThemeColor = task.isThemeColor
                 )
             } else {
                 // Fixed: Project UTC -> Local relative to Midnight.
@@ -129,7 +132,8 @@ fun TimelineScreen(
                         startHour = startTotalMins / 60,
                         startMinute = startTotalMins % 60,
                         endHour = endTotalMins / 60,
-                        endMinute = endTotalMins % 60
+                        endMinute = endTotalMins % 60,
+                        isThemeColor = task.isThemeColor
                     )
                 } else {
                     null // Should have been filtered by SQL, but safe to filter here.
@@ -146,6 +150,11 @@ fun TimelineScreen(
     val horizontalScrollState = rememberScrollState()
 
     var taskToEdit by remember { mutableStateOf<Task?>(null) }
+    val view = LocalView.current
+    
+    // Undo State
+    var deletedTask by remember { mutableStateOf<Task?>(null) }
+    var showUndoSnackbar by remember { mutableStateOf(false) }
     
     if (showTaskBuilder) {
         TaskBuilder(
@@ -167,7 +176,8 @@ fun TimelineScreen(
             dateFormat = dateFormat,
             is24h = is24h,
             timeZone = com.example.lockinplanner.domain.manager.DateTimeManager.getDisplayTimeZone(userPreferences),
-            taskToEdit = taskToEdit
+            taskToEdit = taskToEdit,
+            hapticsEnabled = userPreferences.hapticsEnabled
         )
     }
 
@@ -176,6 +186,10 @@ fun TimelineScreen(
             task = PositionedTask(it, 0),
             onDismiss = { selectedTask = null },
             onDelete = {
+                if (userPreferences.undoEnabled) {
+                    deletedTask = it
+                    showUndoSnackbar = true
+                }
                 viewModel.delete(it)
                 selectedTask = null
             },
@@ -198,6 +212,7 @@ fun TimelineScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Button(onClick = {
+                view.performLightHapticFeedback(userPreferences.hapticsEnabled)
                 taskBuilderStartTime = null
                 taskBuilderEndTime = null
                 showTaskBuilder = true
@@ -205,6 +220,7 @@ fun TimelineScreen(
                 Text("Add Task")
             }
             Button(onClick = {
+                view.performLightHapticFeedback(userPreferences.hapticsEnabled)
                 // Determine current hour in the selected timezone
                 val calendar = com.example.lockinplanner.domain.manager.DateTimeManager.getCalendar(userPreferences)
                 val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
@@ -277,12 +293,19 @@ fun TimelineScreen(
                                                 .padding(top = topOffset)
                                                 .height(height)
                                                 .clip(RoundedCornerShape(8.dp))
-                                                .background(task.color)
+                                                .background(if (task.isThemeColor) androidx.compose.material3.MaterialTheme.colorScheme.primary else task.color)
                                                 .padding(4.dp)
-                                                .clickable { selectedTask = task },
+                                                .clickable { 
+                                                    view.performLightHapticFeedback(userPreferences.hapticsEnabled)
+                                                    selectedTask = task 
+                                                },
                                         ) {
                                             if (startFraction == 0f || height > 20.dp) { 
-                                                 if (task.startHour == hour) {
+                                                 val startBlockHeight = 80f * (1f - (task.startMinute / 60f))
+                                                 val startBlockTooSmall = startBlockHeight <= 20f
+                                                 val shouldDrawTitle = task.startHour == hour || (startBlockTooSmall && task.startHour + 1 == hour)
+                                                 
+                                                 if (shouldDrawTitle) {
                                                     Box {
                                                         Text(
                                                             text = task.name,
@@ -315,6 +338,30 @@ fun TimelineScreen(
                         Icon(Icons.Default.Add, contentDescription = "Add task for $hour:00")
                     }
                 }
+            }
+        }
+        
+        // Undo Snackbar
+        if (showUndoSnackbar && deletedTask != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 16.dp),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                com.example.lockinplanner.ui.components.UndoSnackbar(
+                    message = "Deleted task",
+                    durationSeconds = userPreferences.undoDuration,
+                    onUndo = {
+                        deletedTask?.let { viewModel.insert(it) }
+                        deletedTask = null
+                        showUndoSnackbar = false
+                    },
+                    onDismiss = {
+                        showUndoSnackbar = false
+                        deletedTask = null
+                    }
+                )
             }
         }
     }

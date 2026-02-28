@@ -117,6 +117,12 @@ class ChecklistViewModel(private val repository: ChecklistRepository) : ViewMode
             repository.deleteChecklist(checklist)
         }
     }
+
+    fun restoreChecklist(checklistWithObjectives: com.example.lockinplanner.data.local.entity.ChecklistWithObjectives) {
+        viewModelScope.launch {
+            repository.restoreChecklist(checklistWithObjectives)
+        }
+    }
 }
 
 class ChecklistViewModelFactory(private val repository: ChecklistRepository) : ViewModelProvider.Factory {

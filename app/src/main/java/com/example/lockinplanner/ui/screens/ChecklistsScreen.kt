@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -27,10 +28,18 @@ import com.example.lockinplanner.data.local.entity.ChecklistWithObjectives
 import com.example.lockinplanner.data.repository.ChecklistRepository
 import com.example.lockinplanner.domain.model.UserPreferences
 import com.example.lockinplanner.ui.components.ListCreateDialog
+import com.example.lockinplanner.ui.components.ListImportPopup
 import com.example.lockinplanner.ui.components.ListViewPopup
 import com.example.lockinplanner.ui.components.ObjectiveUiModel
 import com.example.lockinplanner.ui.viewmodel.ChecklistViewModel
 import com.example.lockinplanner.ui.viewmodel.ChecklistViewModelFactory
+import android.widget.Toast
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.example.lockinplanner.ui.utils.performLightHapticFeedback
+import java.io.InputStreamReader
+import java.io.BufferedReader
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -49,8 +58,15 @@ fun ChecklistsScreen(
     
     var columnCount by remember { mutableIntStateOf(2) }
     var showCreateDialog by remember { mutableStateOf(false) }
+    var showImportDialog by remember { mutableStateOf(false) }
     var selectedChecklistId by remember { mutableStateOf<String?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    
+    // Undo State
+    var deletedChecklist by remember { mutableStateOf<ChecklistWithObjectives?>(null) }
+    var showUndoSnackbar by remember { mutableStateOf(false) }
+
+    val view = LocalView.current
     
     // Derived state for the selected item to ensure it updates with the Flow
     val selectedChecklist = remember(checklists, selectedChecklistId) {
@@ -66,6 +82,10 @@ fun ChecklistsScreen(
                 TextButton(
                     onClick = {
                         selectedChecklist?.let {
+                            if (userPreferences.undoEnabled) {
+                                deletedChecklist = it
+                                showUndoSnackbar = true
+                            }
                             viewModel.deleteChecklist(it.checklist)
                             selectedChecklistId = null
                         }
@@ -92,6 +112,7 @@ fun ChecklistsScreen(
                 Text("Checklists", style = MaterialTheme.typography.headlineMedium)
                 Row {
                     IconButton(onClick = { 
+                        view.performLightHapticFeedback(userPreferences.hapticsEnabled)
                         columnCount = when (columnCount) {
                             1 -> 2
                             2 -> 3
@@ -100,7 +121,16 @@ fun ChecklistsScreen(
                     }) {
                         Icon(Icons.Default.List, contentDescription = "Change View")
                     }
-                    IconButton(onClick = { showCreateDialog = true }) {
+                    IconButton(onClick = { 
+                        view.performLightHapticFeedback(userPreferences.hapticsEnabled)
+                        showImportDialog = true 
+                    }) {
+                        Text("▼")
+                    }
+                    IconButton(onClick = { 
+                        view.performLightHapticFeedback(userPreferences.hapticsEnabled)
+                        showCreateDialog = true 
+                    }) {
                         Icon(Icons.Default.Add, contentDescription = "New Checklist")
                     }
                 }
@@ -141,6 +171,16 @@ fun ChecklistsScreen(
                 }
             )
         }
+
+        if (showImportDialog) {
+            ListImportPopup(
+                onDismissRequest = { showImportDialog = false },
+                onSave = { name: String, items: List<String> ->
+                    viewModel.createChecklist(name, items)
+                    showImportDialog = false
+                }
+            )
+        }
         
         // Popup
         if (selectedChecklistId != null) {
@@ -159,6 +199,10 @@ fun ChecklistsScreen(
                          if (userPreferences.confirmDeletion) {
                              showDeleteConfirmDialog = true
                          } else {
+                             if (userPreferences.undoEnabled) {
+                                  deletedChecklist = selectedChecklist
+                                  showUndoSnackbar = true
+                             }
                              viewModel.deleteChecklist(selectedChecklist.checklist)
                              selectedChecklistId = null
                          }
@@ -174,6 +218,30 @@ fun ChecklistsScreen(
                 LaunchedEffect(Unit) {
                     selectedChecklistId = null
                 }
+            }
+        }
+        
+        // Undo Snackbar
+        if (showUndoSnackbar && deletedChecklist != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 16.dp),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                com.example.lockinplanner.ui.components.UndoSnackbar(
+                    message = "Deleted checklist",
+                    durationSeconds = userPreferences.undoDuration,
+                    onUndo = {
+                        deletedChecklist?.let { viewModel.restoreChecklist(it) }
+                        deletedChecklist = null
+                        showUndoSnackbar = false
+                    },
+                    onDismiss = {
+                        showUndoSnackbar = false
+                        deletedChecklist = null
+                    }
+                )
             }
         }
     }

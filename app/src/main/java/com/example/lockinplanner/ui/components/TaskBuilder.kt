@@ -36,6 +36,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +58,8 @@ import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 import java.text.SimpleDateFormat
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalView
+import com.example.lockinplanner.ui.utils.performLightHapticFeedback
 import java.util.TimeZone
 import java.util.Calendar
 import java.util.Locale
@@ -72,8 +75,10 @@ fun TaskBuilder(
     dateFormat: String = "dd/MM/yyyy",
     is24h: Boolean = true,
     timeZone: TimeZone = TimeZone.getDefault(),
-    taskToEdit: Task? = null
+    taskToEdit: Task? = null,
+    hapticsEnabled: Boolean = true
 ) {
+    val view = LocalView.current
     Dialog(onDismissRequest = onDismiss) {
         var taskName by remember { mutableStateOf(taskToEdit?.name ?: "") }
         var taskDescription by remember { mutableStateOf(taskToEdit?.description ?: "") }
@@ -160,6 +165,8 @@ fun TaskBuilder(
         var customColor by remember { mutableStateOf(selectedColor) }
         var customColorHex by remember { mutableStateOf(String.format("#%06X", (0xFFFFFF and selectedColor.toArgb()))) }
         var showCustomColorPicker by remember { mutableStateOf(false) }
+        var showHexInputDialog by remember { mutableStateOf(false) }
+        var isThemeColor by remember { mutableStateOf(taskToEdit?.isThemeColor ?: false) }
 
         var reminders by remember { mutableStateOf(taskToEdit?.reminders ?: emptyList<Int>()) }
         var showReminderDialog by remember { mutableStateOf(false) }
@@ -243,28 +250,40 @@ fun TaskBuilder(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Button(onClick = { showCustomColorPicker = true }) { Text("Custom") }
+                    Button(onClick = { showCustomColorPicker = true }, enabled = !isThemeColor) { Text("Custom") }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(
                             modifier = Modifier
                                 .size(24.dp)
-                                .background(customColor)
+                                .background(if (isThemeColor) MaterialTheme.colorScheme.primary else customColor)
                                 .border(1.dp, Color.DarkGray)
                         )
-                        Box {
+                        Box(modifier = Modifier.clickable(enabled = !isThemeColor) { showHexInputDialog = true }) {
                             Text(
                                 text = customColorHex,
                                 style = LocalTextStyle.current.copy(
                                     drawStyle = Stroke(width = 2f, join = StrokeJoin.Round),
-                                    color = Color.Black
+                                    color = if (isThemeColor) Color.Gray else Color.Black
                                 )
                             )
                             Text(
                                 text = customColorHex,
-                                color = customColor
+                                color = if (isThemeColor) Color.LightGray else customColor
                             )
                         }
                     }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Use Theme Color")
+                    androidx.compose.material3.Switch(
+                        checked = isThemeColor,
+                        onCheckedChange = { isThemeColor = it }
+                    )
                 }
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -409,6 +428,7 @@ fun TaskBuilder(
 
                 Button(
                     onClick = {
+                        view.performLightHapticFeedback(hapticsEnabled)
                         val isFloating = repeatability == "Daily" || repeatability == "Custom"
                         val startH = startTimeText.substringBefore(":").toInt()
                         val startM = startTimeText.substringAfter(":").toInt()
@@ -431,17 +451,6 @@ fun TaskBuilder(
                             endTimeVal = (endH * 60 + endM).toLong()
                         } else {
                             // Store as absolute UTC timestamp
-                            // baseDate is already the "Start of Day" in target timezone (parsed via sdf with setTimeZone)
-                            // We just add the hour/minute offsets in that timezone.
-                            // BUT: sdf.parse returns a UTC timestamp representing that local time.
-                            // e.g. "00:00 NY" -> 05:00 UTC.
-                            // So we can just add the milliseconds.
-                            // Wait, sdf.parse() returns the Millis where that date starts.
-                            // Actually `sdf.timeZone = timeZone` means `parse` interprets the string as being IN that timezone.
-                            // So `baseDate` is the correct absolute millis for 00:00 in that timezone.
-                            // We just need to add the time offset.
-                            // Since `timeZone` might have DST shifts during the day, simple addition (h*3600000) is RISKY.
-                            // CORRECT WAY: Use Calendar in that Timezone.
                             val cal = Calendar.getInstance(timeZone)
                             cal.timeInMillis = baseDate
                             cal.set(Calendar.HOUR_OF_DAY, startH)
@@ -450,11 +459,10 @@ fun TaskBuilder(
                             
                             cal.set(Calendar.HOUR_OF_DAY, endH)
                             cal.set(Calendar.MINUTE, endM)
-                            // Handle overnight? Builder validation currently prevents start > end.
-                            // If we allow overnight later, we'd add +1 day here.
+                            // Handle overnight calculation
                             var tempEnd = cal.timeInMillis
                             if (tempEnd < startTimeVal) {
-                                cal.add(Calendar.DAY_OF_YEAR, 1) // Assume it wraps to next day if user entered 23:00 -> 01:00
+                                cal.add(Calendar.DAY_OF_YEAR, 1) 
                                 tempEnd = cal.timeInMillis
                             }
                             endTimeVal = tempEnd
@@ -472,7 +480,8 @@ fun TaskBuilder(
                             isFloating = isFloating,
                             startTime = startTimeVal,
                             endTime = endTimeVal,
-                            reminders = reminders
+                            reminders = reminders,
+                            isThemeColor = isThemeColor
                         )
                         onSave(task)
                     },
@@ -573,7 +582,20 @@ fun TaskBuilder(
                     }
                 }
 
-                if (showCustomColorPicker) {
+                if (showHexInputDialog) {
+            HexColorInputDialog(
+                initialHex = customColorHex,
+                onDismiss = { showHexInputDialog = false },
+                onSave = { c: androidx.compose.ui.graphics.Color, hex: String ->
+                    customColor = c
+                    selectedColor = c
+                    customColorHex = hex
+                    showHexInputDialog = false
+                }
+            )
+        }
+
+        if (showCustomColorPicker) {
                     val controller = rememberColorPickerController()
                     AlertDialog(
                         onDismissRequest = { showCustomColorPicker = false },
@@ -670,4 +692,76 @@ fun TaskBuilder(
         )
     }
 }
+}
+
+@Composable
+fun HexColorInputDialog(
+    initialHex: String,
+    onDismiss: () -> Unit,
+    onSave: (Color, String) -> Unit
+) {
+    // initialHex usually comes in as "#RRGGBB"
+    var textValue by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(initialHex.removePrefix("#")) }
+    var isError by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        androidx.compose.material3.Surface(
+            shape = androidx.compose.material3.MaterialTheme.shapes.medium,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.surface,
+            modifier = Modifier.padding(16.dp)
+        ) {
+            androidx.compose.foundation.layout.Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp)
+            ) {
+                Text("Enter Hex Color", style = androidx.compose.material3.MaterialTheme.typography.titleLarge)
+
+                androidx.compose.material3.OutlinedTextField(
+                    value = textValue,
+                    onValueChange = { newValue ->
+                        // Only allow up to 6 characters, alphanumeric
+                        if (newValue.length <= 6 && newValue.all { it.isLetterOrDigit() }) {
+                            textValue = newValue.uppercase()
+                        }
+                        
+                        // Validate exact length and hex characters
+                        isError = textValue.length != 6 || textValue.any { it !in "0123456789ABCDEF" }
+                    },
+                    label = { Text("Hex Code") },
+                    leadingIcon = { Text("#", modifier = Modifier.padding(start = 8.dp)) },
+                    singleLine = true,
+                    isError = isError,
+                    supportingText = {
+                        if (isError) {
+                            Text("Must be exactly 6 valid hex characters (e.g. FF0000)")
+                        }
+                    }
+                )
+
+                androidx.compose.foundation.layout.Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                    androidx.compose.material3.Button(
+                        onClick = {
+                            if (!isError && textValue.length == 6) {
+                                try {
+                                    val parsedColor = Color(android.graphics.Color.parseColor("#$textValue"))
+                                    onSave(parsedColor, "#$textValue")
+                                } catch (e: Exception) {
+                                    isError = true
+                                }
+                            }
+                        },
+                        enabled = !isError && textValue.length == 6
+                    ) {
+                        Text("Save")
+                    }
+                }
+            }
+        }
+    }
 }
