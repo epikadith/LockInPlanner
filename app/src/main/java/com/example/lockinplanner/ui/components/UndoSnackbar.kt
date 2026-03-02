@@ -17,13 +17,15 @@ import androidx.compose.ui.unit.dp
 fun UndoSnackbar(
     message: String,
     durationSeconds: Int,
+    triggerKey: Any? = null,
     onUndo: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val progress = remember { Animatable(1f) }
+    val progress = remember(triggerKey) { Animatable(1f) }
 
-    LaunchedEffect(durationSeconds) {
+    LaunchedEffect(triggerKey, durationSeconds) {
+        progress.snapTo(1f)
         progress.animateTo(
             targetValue = 0f,
             animationSpec = tween(

@@ -15,9 +15,17 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,20 +33,25 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.lockinplanner.data.local.AppDatabase
 import com.example.lockinplanner.data.repository.TaskRepository
+import com.example.lockinplanner.data.repository.NotesRepository
 import com.example.lockinplanner.ui.screens.TimelineScreen
 import com.example.lockinplanner.ui.screens.SearchScreen
 import com.example.lockinplanner.ui.screens.CalendarScreen
 import com.example.lockinplanner.ui.screens.ChecklistsScreen
+import com.example.lockinplanner.ui.screens.NotesScreen
 import com.example.lockinplanner.ui.theme.LockInPlannerTheme
 import com.example.lockinplanner.ui.utils.performLightHapticFeedback
 import com.example.lockinplanner.ui.viewmodel.CalendarViewModelFactory
 import com.example.lockinplanner.ui.viewmodel.SearchViewModelFactory
 import com.example.lockinplanner.ui.viewmodel.TimelineViewModelFactory
+import com.example.lockinplanner.ui.viewmodel.NotesViewModelFactory
 
 import androidx.compose.runtime.collectAsState
 import com.example.lockinplanner.data.repository.UserPreferencesRepository
@@ -83,16 +96,25 @@ class MainActivity : ComponentActivity() {
         
         val taskRepository = TaskRepository(database.taskDao(), alarmScheduler, userPreferencesRepository)
         val checklistRepository = com.example.lockinplanner.data.repository.ChecklistRepository(database.checklistDao())
+        val notesRepository = NotesRepository(database.bookDao(), database.chapterDao(), database.pageDao(), database.shortDao())
         
         val viewModelFactory = TimelineViewModelFactory(taskRepository)
-        val settingsViewModelFactory = SettingsViewModelFactory(userPreferencesRepository, taskRepository, checklistRepository)
+        val settingsViewModelFactory = SettingsViewModelFactory(userPreferencesRepository, taskRepository, checklistRepository, notesRepository)
         val searchViewModelFactory = SearchViewModelFactory(taskRepository, checklistRepository)
+        val notesViewModelFactory = NotesViewModelFactory(notesRepository)
 
         setContent {
             val userPreferences by userPreferencesRepository.userPreferencesFlow.collectAsState(initial = UserPreferences())
             
             LockInPlannerTheme(appTheme = userPreferences.theme) {
-                LockInPlannerApp(viewModelFactory, taskRepository, settingsViewModelFactory, searchViewModelFactory, userPreferences)
+                LockInPlannerApp(
+                    viewModelFactory = viewModelFactory, 
+                    repository = taskRepository, 
+                    settingsViewModelFactory = settingsViewModelFactory, 
+                    searchViewModelFactory = searchViewModelFactory,
+                    notesViewModelFactory = notesViewModelFactory,
+                    userPreferences = userPreferences
+                )
             }
         }
     }
@@ -104,57 +126,71 @@ fun LockInPlannerApp(
     repository: TaskRepository,
     settingsViewModelFactory: SettingsViewModelFactory,
     searchViewModelFactory: SearchViewModelFactory,
+    notesViewModelFactory: NotesViewModelFactory,
     userPreferences: UserPreferences
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.TIMELINE) }
     val view = LocalView.current
+    val scrollState = rememberScrollState()
+    val configuration = LocalConfiguration.current
+    val itemWidth = configuration.screenWidthDp.dp / 5f
 
-    NavigationSuiteScaffold(
-        navigationSuiteItems = {
-            AppDestinations.entries.forEach {
-                item(
-                    icon = {
-                        Icon(
-                            it.icon,
-                            contentDescription = it.label
-                        )
-                    },
-                    label = { Text(it.label) },
-                    selected = it == currentDestination,
-                    onClick = { 
-                        view.performLightHapticFeedback(userPreferences.hapticsEnabled)
-                        currentDestination = it 
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        bottomBar = {
+            BottomAppBar {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(scrollState)
+                ) {
+                    AppDestinations.entries.forEach { destination ->
+                        Row(modifier = Modifier.width(itemWidth)) {
+                            NavigationBarItem(
+                                icon = { Icon(destination.icon, contentDescription = destination.label) },
+                                label = { Text(destination.label) },
+                                selected = destination == currentDestination,
+                                onClick = { 
+                                    view.performLightHapticFeedback(userPreferences.hapticsEnabled)
+                                    currentDestination = destination 
+                                }
+                            )
+                        }
                     }
-                )
+                }
             }
         }
-    ) {
-        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-            when (currentDestination) {
-                AppDestinations.TIMELINE -> TimelineScreen(
-                    viewModel = viewModel(factory = viewModelFactory),
-                    userPreferences = userPreferences,
-                    modifier = Modifier.padding(innerPadding)
-                )
-                AppDestinations.CALENDAR -> CalendarScreen(
-                    viewModel = viewModel(factory = CalendarViewModelFactory(repository)),
-                    userPreferences = userPreferences,
-                    modifier = Modifier.padding(innerPadding)
-                )
-                AppDestinations.CHECKLISTS -> ChecklistsScreen(
-                    userPreferences = userPreferences,
-                    modifier = Modifier.padding(innerPadding)
-                )
-                AppDestinations.SEARCH -> SearchScreen(
-                    viewModel = viewModel(factory = searchViewModelFactory),
-                    userPreferences = userPreferences,
-                    modifier = Modifier.padding(innerPadding)
-                )
-                AppDestinations.SETTINGS -> SettingsScreen(
-                    viewModel = viewModel(factory = settingsViewModelFactory),
-                    modifier = Modifier.padding(innerPadding)
-                )
-            }
+    ) { innerPadding ->
+        when (currentDestination) {
+            AppDestinations.TIMELINE -> TimelineScreen(
+                viewModel = viewModel(factory = viewModelFactory),
+                userPreferences = userPreferences,
+                modifier = Modifier.padding(innerPadding)
+            )
+            AppDestinations.CALENDAR -> CalendarScreen(
+                viewModel = viewModel(factory = CalendarViewModelFactory(repository)),
+                userPreferences = userPreferences,
+                modifier = Modifier.padding(innerPadding)
+            )
+            AppDestinations.CHECKLISTS -> ChecklistsScreen(
+                userPreferences = userPreferences,
+                modifier = Modifier.padding(innerPadding)
+            )
+            AppDestinations.SEARCH -> SearchScreen(
+                viewModel = viewModel(factory = searchViewModelFactory),
+                userPreferences = userPreferences,
+                modifier = Modifier.padding(innerPadding)
+            )
+            AppDestinations.NOTES -> NotesScreen(
+                viewModel = viewModel(factory = notesViewModelFactory),
+                settingsViewModel = viewModel(factory = settingsViewModelFactory),
+                userPreferences = userPreferences,
+                modifier = Modifier.padding(innerPadding)
+            )
+            AppDestinations.SETTINGS -> SettingsScreen(
+                viewModel = viewModel(factory = settingsViewModelFactory),
+                modifier = Modifier.padding(innerPadding)
+            )
         }
     }
 }
@@ -167,5 +203,6 @@ enum class AppDestinations(
     CALENDAR("Calendar", Icons.Default.DateRange),
     CHECKLISTS("Lists", Icons.Default.Check),
     SEARCH("Search", Icons.Default.Search),
+    NOTES("Notes", Icons.Default.Edit),
     SETTINGS("Settings", Icons.Default.Settings),
 }

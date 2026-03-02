@@ -39,6 +39,11 @@ class UserPreferencesRepository(private val context: Context) {
         // Undo Deletion
         val UNDO_ENABLED = booleanPreferencesKey("undo_enabled")
         val UNDO_DURATION = androidx.datastore.preferences.core.intPreferencesKey("undo_duration")
+
+        // Notes Display
+        val SHORTS_DISPLAY_MODE = androidx.datastore.preferences.core.intPreferencesKey("shorts_display_mode")
+        val BOOK_VIEW_COLUMN_COUNT = androidx.datastore.preferences.core.intPreferencesKey("book_view_column_count")
+        val CHAPTER_VIEW_COLUMN_COUNT = androidx.datastore.preferences.core.intPreferencesKey("chapter_view_column_count")
     }
 
     val userPreferencesFlow: Flow<UserPreferences> = context.dataStore.data
@@ -82,7 +87,10 @@ class UserPreferencesRepository(private val context: Context) {
                 notifySingle = preferences[PreferencesKeys.NOTIFY_SINGLE] ?: true,
                 hapticsEnabled = preferences[PreferencesKeys.HAPTICS_ENABLED] ?: true,
                 undoEnabled = preferences[PreferencesKeys.UNDO_ENABLED] ?: true,
-                undoDuration = preferences[PreferencesKeys.UNDO_DURATION] ?: 5
+                undoDuration = preferences[PreferencesKeys.UNDO_DURATION] ?: 5,
+                shortsDisplayMode = preferences[PreferencesKeys.SHORTS_DISPLAY_MODE] ?: 0,
+                bookViewColumnCount = preferences[PreferencesKeys.BOOK_VIEW_COLUMN_COUNT] ?: 2,
+                chapterViewColumnCount = preferences[PreferencesKeys.CHAPTER_VIEW_COLUMN_COUNT] ?: 2
             )
         }
 
@@ -185,6 +193,24 @@ class UserPreferencesRepository(private val context: Context) {
     suspend fun updateUndoDuration(duration: Int) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.UNDO_DURATION] = duration
+        }
+    }
+
+    suspend fun updateShortsDisplayMode(mode: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.SHORTS_DISPLAY_MODE] = mode
+        }
+    }
+
+    suspend fun updateBookViewColumnCount(count: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.BOOK_VIEW_COLUMN_COUNT] = count
+        }
+    }
+
+    suspend fun updateChapterViewColumnCount(count: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.CHAPTER_VIEW_COLUMN_COUNT] = count
         }
     }
 }

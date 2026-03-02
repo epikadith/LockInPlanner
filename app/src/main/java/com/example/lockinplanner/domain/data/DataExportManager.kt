@@ -1,7 +1,11 @@
 package com.example.lockinplanner.domain.data
 
+import com.example.lockinplanner.data.local.entity.BookEntity
+import com.example.lockinplanner.data.local.entity.ChapterEntity
 import com.example.lockinplanner.data.local.entity.ChecklistEntity
 import com.example.lockinplanner.data.local.entity.ObjectiveEntity
+import com.example.lockinplanner.data.local.entity.PageEntity
+import com.example.lockinplanner.data.local.entity.ShortEntity
 import com.example.lockinplanner.data.local.entity.TaskEntity
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -15,12 +19,24 @@ enum class ExportFormat {
 
 data class ExportData(
     val tasks: List<TaskEntity> = emptyList(),
-    val checklists: List<ChecklistWithItems> = emptyList()
+    val checklists: List<ChecklistWithItems> = emptyList(),
+    val shorts: List<ShortEntity> = emptyList(),
+    val books: List<ExportBook> = emptyList()
 )
 
 data class ChecklistWithItems(
     val checklist: ChecklistEntity,
     val items: List<ObjectiveEntity>
+)
+
+data class ExportBook(
+    val book: BookEntity,
+    val chapters: List<ExportChapter>
+)
+
+data class ExportChapter(
+    val chapter: ChapterEntity,
+    val pages: List<PageEntity>
 )
 
 class DataExportManager {
@@ -54,7 +70,7 @@ class DataExportManager {
          val sb = StringBuilder()
         
         if (data.tasks.isNotEmpty()) {
-            sb.append("ID${delimiter}Name${delimiter}Description${delimiter}StartTime${delimiter}EndTime${delimiter}Repeatability${delimiter}IsFloating${delimiter}Color${delimiter}CustomRepeatDays${delimiter}Reminders\n")
+            sb.append("ID${delimiter}Name${delimiter}Description${delimiter}StartTime${delimiter}EndTime${delimiter}Repeatability${delimiter}IsFloating${delimiter}Color${delimiter}CustomRepeatDays${delimiter}Reminders${delimiter}IsThemeColor\n")
             data.tasks.forEach { task ->
                 sb.append(escape(task.id.toString(), delimiter)).append(delimiter)
                 sb.append(escape(task.name, delimiter)).append(delimiter)
@@ -67,7 +83,8 @@ class DataExportManager {
                 sb.append(task.customRepeatDays ?: "").append(delimiter)
                 // Reminders: List<Int> -> join with semicolon
                 val remindersStr = task.reminders.joinToString(";")
-                sb.append(escape(remindersStr, delimiter)).append("\n")
+                sb.append(escape(remindersStr, delimiter)).append(delimiter)
+                sb.append(task.isThemeColor).append("\n")
             }
         }
 
@@ -91,6 +108,47 @@ class DataExportManager {
                 }
             }
         }
+        
+        if (data.shorts.isNotEmpty()) {
+            if (sb.isNotEmpty()) sb.append("\n")
+            sb.append("ShortID${delimiter}Title${delimiter}Color${delimiter}CreatedAt\n")
+            data.shorts.forEach { short ->
+                sb.append(escape(short.id, delimiter)).append(delimiter)
+                sb.append(escape(short.title, delimiter)).append(delimiter)
+                sb.append(short.colorArgb).append(delimiter)
+                sb.append(short.createdAt).append("\n")
+            }
+        }
+        
+        if (data.books.isNotEmpty()) {
+            if (sb.isNotEmpty()) sb.append("\n")
+            sb.append("BookID${delimiter}BookTitle${delimiter}ChapterID${delimiter}ChapterTitle${delimiter}PageID${delimiter}PageTitle${delimiter}PageContent\n")
+            data.books.forEach { book ->
+                val bId = escape(book.book.id, delimiter)
+                val bTitle = escape(book.book.title, delimiter)
+                if (book.chapters.isEmpty()) {
+                    sb.append(bId).append(delimiter).append(bTitle).append("$delimiter$delimiter$delimiter$delimiter\n")
+                } else {
+                    book.chapters.forEach { chapter ->
+                        val cId = escape(chapter.chapter.id, delimiter)
+                        val cTitle = escape(chapter.chapter.title, delimiter)
+                        if (chapter.pages.isEmpty()) {
+                            sb.append(bId).append(delimiter).append(bTitle).append(delimiter)
+                            sb.append(cId).append(delimiter).append(cTitle).append("$delimiter$delimiter\n")
+                        } else {
+                            chapter.pages.forEach { page ->
+                                sb.append(bId).append(delimiter).append(bTitle).append(delimiter)
+                                sb.append(cId).append(delimiter).append(cTitle).append(delimiter)
+                                sb.append(escape(page.id, delimiter)).append(delimiter)
+                                sb.append(escape(page.title, delimiter)).append(delimiter)
+                                sb.append(escape(page.content, delimiter)).append("\n")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         return sb.toString()
     }
 
@@ -130,6 +188,34 @@ class DataExportManager {
                 sb.append("\n")
             }
         }
+        
+        if (data.shorts.isNotEmpty()) {
+            if (sb.isNotEmpty()) sb.append("\n")
+            sb.append("=== SHORTS ===\n\n")
+            data.shorts.forEach { short ->
+                sb.append("• ${short.title}\n")
+            }
+        }
+
+        if (data.books.isNotEmpty()) {
+            if (sb.isNotEmpty()) sb.append("\n")
+            sb.append("=== BOOKS ===\n\n")
+            data.books.forEach { eb ->
+                sb.append("📖 ${eb.book.title}\n")
+                eb.chapters.forEach { ec ->
+                    sb.append("  📑 ${ec.chapter.title}\n")
+                    ec.pages.forEach { page ->
+                        sb.append("    📄 ${page.title}\n")
+                        if (page.content.isNotBlank()) {
+                            val indentedContent = page.content.lines().joinToString("\n") { "      $it" }
+                            sb.append("$indentedContent\n")
+                        }
+                    }
+                }
+                sb.append("\n")
+            }
+        }
+        
         return sb.toString()
     }
 

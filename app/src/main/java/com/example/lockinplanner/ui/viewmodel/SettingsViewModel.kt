@@ -16,7 +16,8 @@ import kotlinx.coroutines.flow.first
 class SettingsViewModel(
     private val userPreferencesRepository: UserPreferencesRepository,
     private val taskRepository: com.example.lockinplanner.data.repository.TaskRepository,
-    private val checklistRepository: com.example.lockinplanner.data.repository.ChecklistRepository
+    private val checklistRepository: com.example.lockinplanner.data.repository.ChecklistRepository,
+    private val notesRepository: com.example.lockinplanner.data.repository.NotesRepository
 ) : ViewModel() {
 
     private val exportManager = com.example.lockinplanner.domain.data.DataExportManager()
@@ -105,11 +106,23 @@ class SettingsViewModel(
         userPreferencesRepository.updateUndoDuration(duration)
     }
 
+    fun updateShortsDisplayMode(mode: Int) = viewModelScope.launch {
+        userPreferencesRepository.updateShortsDisplayMode(mode)
+    }
+
+    fun updateBookViewColumnCount(count: Int) = viewModelScope.launch {
+        userPreferencesRepository.updateBookViewColumnCount(count)
+    }
+
+    fun updateChapterViewColumnCount(count: Int) = viewModelScope.launch {
+        userPreferencesRepository.updateChapterViewColumnCount(count)
+    }
+
     // --- Export Logic ---
     fun exportData(
         uri: android.net.Uri, 
         contentResolver: android.content.ContentResolver,
-        options: Set<String>, // "Tasks", "Checklists"
+        options: Set<String>, // "Tasks", "Checklists", "Shorts", "Books"
         format: com.example.lockinplanner.domain.data.ExportFormat,
         onResult: (Boolean, String) -> Unit
     ) = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
@@ -123,8 +136,28 @@ class SettingsViewModel(
                      com.example.lockinplanner.domain.data.ChecklistWithItems(it.checklist, it.objectives)
                  }
             } else emptyList<com.example.lockinplanner.domain.data.ChecklistWithItems>()
+
+            val shorts = if (options.contains("Shorts")) {
+                 notesRepository.allShorts.first()
+            } else emptyList<com.example.lockinplanner.data.local.entity.ShortEntity>()
+
+            val books = if (options.contains("Books")) {
+                 notesRepository.allBooksWithChapters.first().map { bookWithChapters ->
+                     val exportChapters = bookWithChapters.chapters.map { chapter ->
+                         val chapterWithPages = notesRepository.getChapterWithPages(chapter.id).first()
+                         com.example.lockinplanner.domain.data.ExportChapter(
+                             chapter = chapter,
+                             pages = chapterWithPages?.pages ?: emptyList()
+                         )
+                     }
+                     com.example.lockinplanner.domain.data.ExportBook(
+                         book = bookWithChapters.book,
+                         chapters = exportChapters
+                     )
+                 }
+            } else emptyList<com.example.lockinplanner.domain.data.ExportBook>()
             
-            val payload = com.example.lockinplanner.domain.data.ExportData(tasks, checklists)
+            val payload = com.example.lockinplanner.domain.data.ExportData(tasks, checklists, shorts, books)
             val outputString = exportManager.exportData(payload, format)
             
             contentResolver.openOutputStream(uri)?.use { outputStream ->
@@ -164,6 +197,23 @@ class SettingsViewModel(
                              }
                              checklistRepository.insertObjectives(newItems)
                         }
+                        // Insert Shorts
+                        result.data.shorts.forEach { short ->
+                            notesRepository.insertShort(short.copy(id = java.util.UUID.randomUUID().toString()))
+                        }
+                        // Insert Books
+                        result.data.books.forEach { exportBook ->
+                            val newBookId = java.util.UUID.randomUUID().toString()
+                            notesRepository.insertBook(exportBook.book.copy(id = newBookId))
+                            exportBook.chapters.forEach { exportChapter ->
+                                val newChapterId = java.util.UUID.randomUUID().toString()
+                                notesRepository.insertChapter(exportChapter.chapter.copy(id = newChapterId, bookId = newBookId))
+                                exportChapter.pages.forEach { page ->
+                                    val newPageId = java.util.UUID.randomUUID().toString()
+                                    notesRepository.insertPage(page.copy(id = newPageId, chapterId = newChapterId))
+                                }
+                            }
+                        }
                         
                         launch(kotlinx.coroutines.Dispatchers.Main) { onResult(true, "Import Successful") }
                     }
@@ -177,13 +227,18 @@ class SettingsViewModel(
         }
     }
 
-    // --- Delete Logic ---
-    fun deleteAllData(deleteTasks: Boolean, deleteChecklists: Boolean, onResult: () -> Unit) = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+    fun deleteAllData(deleteTasks: Boolean, deleteChecklists: Boolean, deleteShorts: Boolean, deleteBooks: Boolean, onResult: () -> Unit) = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
         if (deleteTasks) {
             taskRepository.deleteAllTasks()
         }
         if (deleteChecklists) {
             checklistRepository.deleteAllChecklists()
+        }
+        if (deleteShorts) {
+            notesRepository.allShorts.first().forEach { notesRepository.deleteShort(it) }
+        }
+        if (deleteBooks) {
+            notesRepository.allBooks.first().forEach { notesRepository.deleteBook(it) }
         }
         launch(kotlinx.coroutines.Dispatchers.Main) { onResult() }
     }
@@ -198,12 +253,13 @@ class SettingsViewModel(
 class SettingsViewModelFactory(
     private val userPreferencesRepository: UserPreferencesRepository,
     private val taskRepository: com.example.lockinplanner.data.repository.TaskRepository,
-    private val checklistRepository: com.example.lockinplanner.data.repository.ChecklistRepository
+    private val checklistRepository: com.example.lockinplanner.data.repository.ChecklistRepository,
+    private val notesRepository: com.example.lockinplanner.data.repository.NotesRepository
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(SettingsViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return SettingsViewModel(userPreferencesRepository, taskRepository, checklistRepository) as T
+            return SettingsViewModel(userPreferencesRepository, taskRepository, checklistRepository, notesRepository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

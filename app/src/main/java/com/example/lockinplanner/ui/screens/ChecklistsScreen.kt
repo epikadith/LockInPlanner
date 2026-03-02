@@ -65,6 +65,7 @@ fun ChecklistsScreen(
     // Undo State
     var deletedChecklist by remember { mutableStateOf<ChecklistWithObjectives?>(null) }
     var showUndoSnackbar by remember { mutableStateOf(false) }
+    var snackbarTrigger by remember { mutableIntStateOf(0) }
 
     val view = LocalView.current
     
@@ -84,6 +85,7 @@ fun ChecklistsScreen(
                         selectedChecklist?.let {
                             if (userPreferences.undoEnabled) {
                                 deletedChecklist = it
+                                snackbarTrigger++
                                 showUndoSnackbar = true
                             }
                             viewModel.deleteChecklist(it.checklist)
@@ -136,23 +138,38 @@ fun ChecklistsScreen(
                 }
             }
             
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(columnCount),
-                contentPadding = PaddingValues(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                items(checklists, key = { it.checklist.id }) { item ->
-                    ChecklistCard(
-                        checklistWithObjectives = item,
-                        isExpandedView = columnCount == 1,
-                        onClick = { selectedChecklistId = item.checklist.id }
+            if (checklists.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(id = com.example.lockinplanner.R.drawable.checklistpagedefault),
+                        contentDescription = "No checklists yet",
+                        modifier = Modifier.size(400.dp),
+                        colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
                     )
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(columnCount),
+                    contentPadding = PaddingValues(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    items(checklists, key = { it.checklist.id }) { item ->
+                        ChecklistCard(
+                            checklistWithObjectives = item,
+                            isExpandedView = columnCount == 1,
+                            onClick = { selectedChecklistId = item.checklist.id }
+                        )
+                    }
                 }
             }
         }
-        
         if (showCreateDialog) {
             ListCreateDialog(
                 initialName = selectedChecklist?.checklist?.name ?: "",
@@ -201,6 +218,7 @@ fun ChecklistsScreen(
                          } else {
                              if (userPreferences.undoEnabled) {
                                   deletedChecklist = selectedChecklist
+                                  snackbarTrigger++
                                   showUndoSnackbar = true
                              }
                              viewModel.deleteChecklist(selectedChecklist.checklist)
@@ -232,6 +250,7 @@ fun ChecklistsScreen(
                 com.example.lockinplanner.ui.components.UndoSnackbar(
                     message = "Deleted checklist",
                     durationSeconds = userPreferences.undoDuration,
+                    triggerKey = snackbarTrigger,
                     onUndo = {
                         deletedChecklist?.let { viewModel.restoreChecklist(it) }
                         deletedChecklist = null

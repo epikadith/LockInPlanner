@@ -34,9 +34,6 @@ class DataImportManager {
             if (data.tasks.any { it.name.isBlank() }) {
                 return ImportResult.Error("Import failed: One or more tasks have empty names.")
             }
-            if (data.tasks.any { it.startTime == it.endTime }) {
-                return ImportResult.Error("Import failed: One or more tasks have zero duration (Start Time = End Time).")
-            }
             if (data.checklists.any { it.checklist.name.isBlank() }) {
                 return ImportResult.Error("Import failed: One or more checklists have empty names.")
             }
@@ -62,7 +59,7 @@ class DataImportManager {
         val root = jsonElement.asJsonObject
         
         // Allowed root keys
-        val allowedRootKeys = setOf("tasks", "checklists")
+        val allowedRootKeys = setOf("tasks", "checklists", "shorts", "books")
         val unknownRoot = root.keySet().filter { !allowedRootKeys.contains(it) }
         if (unknownRoot.isNotEmpty()) {
              throw Exception("Unknown fields in root: $unknownRoot")
@@ -88,13 +85,33 @@ class DataImportManager {
              }
         }
 
+        // Validate Shorts
+        if (root.has("shorts")) {
+             val shortsArray = root.get("shorts")
+             if (!shortsArray.isJsonArray) throw Exception("'shorts' must be an array.")
+             shortsArray.asJsonArray.forEach { element ->
+                 if (!element.isJsonObject) throw Exception("Short item must be an object.")
+                 validateShortSchema(element.asJsonObject)
+             }
+        }
+
+        // Validate Books
+        if (root.has("books")) {
+             val booksArray = root.get("books")
+             if (!booksArray.isJsonArray) throw Exception("'books' must be an array.")
+             booksArray.asJsonArray.forEach { element ->
+                 if (!element.isJsonObject) throw Exception("Book wrapper must be an object.")
+                 validateBookSchema(element.asJsonObject)
+             }
+        }
+
         // If validation passes, deserialize
         return gson.fromJson(jsonElement, ExportData::class.java)
     }
 
     private fun validateTaskSchema(json: JsonObject) {
          val allowed = setOf("id", "name", "description", "color", "repeatability", 
-                             "customRepeatDays", "isFloating", "startTime", "endTime", "reminders")
+                             "customRepeatDays", "isFloating", "startTime", "endTime", "reminders", "isThemeColor")
          val required = setOf("name", "startTime", "endTime") // Minimal required
          
          val keys = json.keySet()
@@ -103,11 +120,6 @@ class DataImportManager {
          
          val missing = required.filter { !keys.contains(it) }
          if (missing.isNotEmpty()) throw Exception("Missing required fields in Task: $missing")
-         
-         // Logic check (already have duplicate check later, but good to catch here)
-         if (json.get("startTime").asLong == json.get("endTime").asLong) {
-              throw Exception("Task '${json.get("name").asString}' has zero duration.")
-         }
     }
 
     private fun validateChecklistSchema(json: JsonObject) {
@@ -139,6 +151,92 @@ class DataImportManager {
         
         val missing = required.filter { !keys.contains(it) }
         if (missing.isNotEmpty()) throw Exception("Missing required fields in Checklist Entity: $missing")
+    }
+
+    private fun validateShortSchema(json: JsonObject) {
+         val allowed = setOf("id", "title", "content", "colorArgb", "createdAt")
+         val required = setOf("title")
+         val keys = json.keySet()
+         
+         val unknown = keys.filter { !allowed.contains(it) }
+         if (unknown.isNotEmpty()) throw Exception("Unknown fields in Short: $unknown")
+         
+         val missing = required.filter { !keys.contains(it) }
+         if (missing.isNotEmpty()) throw Exception("Missing required fields in Short: $missing")
+    }
+
+    private fun validateBookSchema(json: JsonObject) {
+         val allowedWrapper = setOf("book", "chapters")
+         val keys = json.keySet()
+         val unknown = keys.filter { !allowedWrapper.contains(it) }
+         if (unknown.isNotEmpty()) throw Exception("Unknown fields in Book Wrapper: $unknown")
+         
+         if (!json.has("book")) throw Exception("Book wrapper missing 'book' object.")
+         validateBookEntitySchema(json.get("book").asJsonObject)
+         
+         if (json.has("chapters")) {
+             val chapters = json.get("chapters")
+             if (!chapters.isJsonArray) throw Exception("'chapters' must be an array.")
+             chapters.asJsonArray.forEach { 
+                 if (!it.isJsonObject) throw Exception("Chapter wrapper must be an object.")
+                 validateChapterSchema(it.asJsonObject) 
+             }
+         }
+    }
+    
+    private fun validateBookEntitySchema(json: JsonObject) {
+        val allowed = setOf("id", "title", "createdAt", "colorArgb")
+        val required = setOf("title")
+        val keys = json.keySet()
+        
+        val unknown = keys.filter { !allowed.contains(it) }
+        if (unknown.isNotEmpty()) throw Exception("Unknown fields in Book Entity: $unknown")
+        
+        val missing = required.filter { !keys.contains(it) }
+        if (missing.isNotEmpty()) throw Exception("Missing required fields in Book Entity: $missing")
+    }
+
+    private fun validateChapterSchema(json: JsonObject) {
+        val allowedWrapper = setOf("chapter", "pages")
+        val keys = json.keySet()
+        val unknown = keys.filter { !allowedWrapper.contains(it) }
+        if (unknown.isNotEmpty()) throw Exception("Unknown fields in Chapter Wrapper: $unknown")
+        
+        if (!json.has("chapter")) throw Exception("Chapter wrapper missing 'chapter' object.")
+        validateChapterEntitySchema(json.get("chapter").asJsonObject)
+        
+        if (json.has("pages")) {
+            val pages = json.get("pages")
+            if (!pages.isJsonArray) throw Exception("'pages' must be an array.")
+            pages.asJsonArray.forEach { 
+                if (!it.isJsonObject) throw Exception("Page Entity must be an object.")
+                validatePageEntitySchema(it.asJsonObject) 
+            }
+        }
+    }
+
+    private fun validateChapterEntitySchema(json: JsonObject) {
+        val allowed = setOf("id", "bookId", "title", "createdAt", "orderIndex")
+        val required = setOf("title")
+        val keys = json.keySet()
+        
+        val unknown = keys.filter { !allowed.contains(it) }
+        if (unknown.isNotEmpty()) throw Exception("Unknown fields in Chapter Entity: $unknown")
+        
+        val missing = required.filter { !keys.contains(it) }
+        if (missing.isNotEmpty()) throw Exception("Missing required fields in Chapter Entity: $missing")
+    }
+
+    private fun validatePageEntitySchema(json: JsonObject) {
+        val allowed = setOf("id", "chapterId", "title", "content", "createdAt", "orderIndex")
+        val required = setOf("title", "content")
+        val keys = json.keySet()
+        
+        val unknown = keys.filter { !allowed.contains(it) }
+        if (unknown.isNotEmpty()) throw Exception("Unknown fields in Page Entity: $unknown")
+        
+        val missing = required.filter { !keys.contains(it) }
+        if (missing.isNotEmpty()) throw Exception("Missing required fields in Page Entity: $missing")
     }
 
     private fun validateObjectiveSchema(json: JsonObject) {
@@ -185,6 +283,10 @@ class DataImportManager {
                     if (tokens.size >= 10) {
                         reminders = tokens[9].split(";").mapNotNull { it.toIntOrNull() }
                     }
+                    var isThemeColor = false
+                    if (tokens.size >= 11) {
+                         isThemeColor = tokens[10].toBoolean()
+                    }
 
                     tasks.add(
                         TaskEntity(
@@ -197,7 +299,8 @@ class DataImportManager {
                             isFloating = tokens[6].toBoolean(),
                             color = color,
                             customRepeatDays = customRepeat,
-                            reminders = reminders
+                            reminders = reminders,
+                            isThemeColor = isThemeColor
                         )
                     )
                 }

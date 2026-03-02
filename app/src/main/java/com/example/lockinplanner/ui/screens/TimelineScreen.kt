@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -155,6 +156,7 @@ fun TimelineScreen(
     // Undo State
     var deletedTask by remember { mutableStateOf<Task?>(null) }
     var showUndoSnackbar by remember { mutableStateOf(false) }
+    var snackbarTrigger by remember { mutableIntStateOf(0) }
     
     if (showTaskBuilder) {
         TaskBuilder(
@@ -188,6 +190,7 @@ fun TimelineScreen(
             onDelete = {
                 if (userPreferences.undoEnabled) {
                     deletedTask = it
+                    snackbarTrigger++
                     showUndoSnackbar = true
                 }
                 viewModel.delete(it)
@@ -232,7 +235,8 @@ fun TimelineScreen(
                 Text("Center")
             }
         }
-        LazyColumn(state = lazyListState) {
+        Box(modifier = Modifier.weight(1f)) {
+            LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
             items(24) { hour ->
                 val timeLabel = com.example.lockinplanner.domain.manager.DateTimeManager.formatTime(hour, 0, userPreferences)
 
@@ -340,28 +344,30 @@ fun TimelineScreen(
                 }
             }
         }
-        
+            
         // Undo Snackbar
         if (showUndoSnackbar && deletedTask != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = 16.dp),
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                com.example.lockinplanner.ui.components.UndoSnackbar(
-                    message = "Deleted task",
-                    durationSeconds = userPreferences.undoDuration,
-                    onUndo = {
-                        deletedTask?.let { viewModel.insert(it) }
-                        deletedTask = null
-                        showUndoSnackbar = false
-                    },
-                    onDismiss = {
-                        showUndoSnackbar = false
-                        deletedTask = null
-                    }
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 16.dp),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    com.example.lockinplanner.ui.components.UndoSnackbar(
+                        message = "Deleted task",
+                        durationSeconds = userPreferences.undoDuration,
+                        triggerKey = snackbarTrigger,
+                        onUndo = {
+                            deletedTask?.let { viewModel.insert(it) }
+                            deletedTask = null
+                            showUndoSnackbar = false
+                        },
+                        onDismiss = {
+                            showUndoSnackbar = false
+                            deletedTask = null
+                        }
+                    )
+                }
             }
         }
     }

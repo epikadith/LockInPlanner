@@ -68,6 +68,7 @@ fun SearchScreen(
     var deletedTask by remember { mutableStateOf<Task?>(null) }
     var deletedChecklist by remember { mutableStateOf<com.example.lockinplanner.data.local.entity.ChecklistWithObjectives?>(null) }
     var showUndoSnackbar by remember { mutableStateOf(false) }
+    var snackbarTrigger by remember { mutableIntStateOf(0) }
     var undoMessage by remember { mutableStateOf("") }
     
     var selectedTask by remember { mutableStateOf<Task?>(null) }
@@ -157,6 +158,7 @@ fun SearchScreen(
                     deletedTask = task
                     deletedChecklist = null
                     undoMessage = "Deleted task"
+                    snackbarTrigger++
                     showUndoSnackbar = true
                 }
                 timelineViewModel.delete(task)
@@ -215,6 +217,7 @@ fun SearchScreen(
                         deletedChecklist = list
                         deletedTask = null
                         undoMessage = "Deleted checklist"
+                        snackbarTrigger++
                         showUndoSnackbar = true
                     }
                     checklistViewModel.deleteChecklist(list.checklist)
@@ -240,6 +243,7 @@ fun SearchScreen(
             com.example.lockinplanner.ui.components.UndoSnackbar(
                 message = undoMessage,
                 durationSeconds = userPreferences.undoDuration,
+                triggerKey = snackbarTrigger,
                 onUndo = {
                     deletedTask?.let { timelineViewModel.insert(it) }
                     deletedChecklist?.let { checklistViewModel.restoreChecklist(it) }

@@ -18,5 +18,9 @@ data class UserPreferences(
     val hapticsEnabled: Boolean = true,
     // Undo Deletion
     val undoEnabled: Boolean = true,
-    val undoDuration: Int = 5
+    val undoDuration: Int = 5,
+    // Notes Display Preferences
+    val shortsDisplayMode: Int = 0,
+    val bookViewColumnCount: Int = 2,
+    val chapterViewColumnCount: Int = 2
 )

@@ -31,6 +31,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -117,6 +118,7 @@ fun CalendarScreen(
     // Undo State
     var deletedTask by remember { mutableStateOf<Task?>(null) }
     var showUndoSnackbar by remember { mutableStateOf(false) }
+    var snackbarTrigger by remember { mutableIntStateOf(0) }
     
     // DateFormat should also respect the selected TimeZone for displaying "December 1, 2024" etc.
     // Actually current code uses 'dateFormat' for popup title.
@@ -203,6 +205,7 @@ fun CalendarScreen(
             onDelete = {
                 if (userPreferences.undoEnabled) {
                     deletedTask = task
+                    snackbarTrigger++
                     showUndoSnackbar = true
                 }
                 viewModel.delete(task)
@@ -290,10 +293,11 @@ fun CalendarScreen(
 
         // Calendar Grid
         val daysInMonth = getDaysInMonth(currentMonth, timeZone)
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(7),
-            modifier = Modifier.fillMaxSize()
-        ) {
+        Box(modifier = Modifier.weight(1f)) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(7),
+                modifier = Modifier.fillMaxSize()
+            ) {
             items(daysInMonth) { day ->
                 val dayTasks = if (day.date != null) {
                     val checkCalendar = day.date.clone() as Calendar
@@ -342,6 +346,32 @@ fun CalendarScreen(
                     isToday = isToday,
                     onClick = { if (day.date != null) selectedDay = day }
                 )
+            }
+        }
+            
+        // Undo Snackbar
+            if (showUndoSnackbar && deletedTask != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 16.dp),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    com.example.lockinplanner.ui.components.UndoSnackbar(
+                        message = "Deleted task",
+                        durationSeconds = userPreferences.undoDuration,
+                        triggerKey = snackbarTrigger,
+                        onUndo = {
+                            deletedTask?.let { viewModel.insert(it) }
+                            deletedTask = null
+                            showUndoSnackbar = false
+                        },
+                        onDismiss = {
+                            showUndoSnackbar = false
+                            deletedTask = null
+                        }
+                    )
+                }
             }
         }
     }

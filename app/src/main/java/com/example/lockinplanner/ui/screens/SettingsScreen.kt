@@ -238,8 +238,8 @@ fun SettingsScreen(
     if (showDeleteDialog) {
         DeleteDataDialog(
             onDismiss = { showDeleteDialog = false },
-            onConfirm = { deleteTasks, deleteChecklists ->
-                viewModel.deleteAllData(deleteTasks, deleteChecklists) {
+            onConfirm = { deleteTasks, deleteChecklists, deleteShorts, deleteBooks ->
+                viewModel.deleteAllData(deleteTasks, deleteChecklists, deleteShorts, deleteBooks) {
                     showDeleteDialog = false
                     android.widget.Toast.makeText(context, "Deleted Selected Data", android.widget.Toast.LENGTH_SHORT).show()
                 }
@@ -347,6 +347,26 @@ fun ExportDialog(
                     )
                     Text("Checklists")
                 }
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = currentOptions.contains("Shorts"),
+                        onCheckedChange = { 
+                            val new = if (it) currentOptions + "Shorts" else currentOptions - "Shorts"
+                            onOptionsChanged(new)
+                        }
+                    )
+                    Text("Shorts")
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Checkbox(
+                        checked = currentOptions.contains("Books"),
+                        onCheckedChange = { 
+                            val new = if (it) currentOptions + "Books" else currentOptions - "Books"
+                            onOptionsChanged(new)
+                        }
+                    )
+                    Text("Books")
+                }
 
                 Text("Format", style = MaterialTheme.typography.titleMedium)
                 com.example.lockinplanner.domain.data.ExportFormat.values().forEach { format ->
@@ -413,10 +433,12 @@ fun ImportFormatDialog(
 @Composable
 fun DeleteDataDialog(
     onDismiss: () -> Unit,
-    onConfirm: (Boolean, Boolean) -> Unit
+    onConfirm: (Boolean, Boolean, Boolean, Boolean) -> Unit
 ) {
     var deleteTasks by remember { mutableStateOf(false) }
     var deleteChecklists by remember { mutableStateOf(false) }
+    var deleteShorts by remember { mutableStateOf(false) }
+    var deleteBooks by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -446,15 +468,31 @@ fun DeleteDataDialog(
                     )
                     Text("Delete All Checklists")
                 }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = deleteShorts,
+                        onCheckedChange = { deleteShorts = it }
+                    )
+                    Text("Delete All Shorts")
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = deleteBooks,
+                        onCheckedChange = { deleteBooks = it }
+                    )
+                    Text("Delete All Books")
+                }
                 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss) { Text("Cancel") }
                     Button(
-                        onClick = { onConfirm(deleteTasks, deleteChecklists) },
+                        onClick = { onConfirm(deleteTasks, deleteChecklists, deleteShorts, deleteBooks) },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.error
                         ),
-                        enabled = deleteTasks || deleteChecklists
+                        enabled = deleteTasks || deleteChecklists || deleteShorts || deleteBooks
                     ) { Text("Confirm Delete") }
                 }
             }
