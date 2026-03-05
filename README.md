@@ -6,6 +6,9 @@ LockInPlanner is a simple app to plan your day. You can create/update/delete tas
 
 ## Features
 * **Tasks** can be created from various places, and are displayed on a timeline showing the hours of the present day. These tasks are also displayed on the calendar page, allowing you to see tasks for any given date. Tasks have the following attributes: Name, Colour, Start Time, End Time, Date, Repeatability, Description.
+
+**NOTE**: This has not been updated for the latest release, I'll get around to it later (I won't)
+
 <p align="center">
   <img src="screenshots/Timeline.jpg" alt="Timeline Appearance" width="300" />
   <br>
@@ -58,7 +61,7 @@ LockInPlanner is a simple app to plan your day. You can create/update/delete tas
 
 ## Installation
 
-Latest version is `v1.0`.
+Latest version is `v2.0.0`.
 
 ### Option 1: Download APK (Easiest)
 You can simply download and install the latest version of the app directly on your Android device.
