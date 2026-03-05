@@ -16,6 +16,9 @@ interface ChapterDao {
     @Query("SELECT * FROM chapters WHERE bookId = :bookId ORDER BY createdAt ASC")
     fun getChaptersForBook(bookId: String): Flow<List<ChapterEntity>>
 
+    @Query("SELECT * FROM chapters")
+    fun getAllChapters(): Flow<List<ChapterEntity>>
+
     @Transaction
     @Query("SELECT * FROM chapters WHERE id = :id")
     fun getChapterWithPages(id: String): Flow<ChapterWithPages?>

@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -106,7 +107,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val userPreferences by userPreferencesRepository.userPreferencesFlow.collectAsState(initial = UserPreferences())
             
-            LockInPlannerTheme(appTheme = userPreferences.theme) {
+            LockInPlannerTheme(appTheme = userPreferences.theme, userPreferences = userPreferences) {
                 LockInPlannerApp(
                     viewModelFactory = viewModelFactory, 
                     repository = taskRepository, 
@@ -144,7 +145,7 @@ fun LockInPlannerApp(
                         .fillMaxWidth()
                         .horizontalScroll(scrollState)
                 ) {
-                    AppDestinations.entries.forEach { destination ->
+                    AppDestinations.entries.filter { it != AppDestinations.ANALYTICS }.forEach { destination ->
                         Row(modifier = Modifier.width(itemWidth)) {
                             NavigationBarItem(
                                 icon = { Icon(destination.icon, contentDescription = destination.label) },
@@ -187,8 +188,26 @@ fun LockInPlannerApp(
                 userPreferences = userPreferences,
                 modifier = Modifier.padding(innerPadding)
             )
+            AppDestinations.ANALYTICS -> {
+                val analyticsViewModelFactory = com.example.lockinplanner.ui.viewmodel.AnalyticsViewModelFactory(
+                    repository,
+                    com.example.lockinplanner.data.repository.ChecklistRepository(com.example.lockinplanner.data.local.AppDatabase.getDatabase(androidx.compose.ui.platform.LocalContext.current).checklistDao()),
+                    com.example.lockinplanner.data.repository.NotesRepository(
+                        com.example.lockinplanner.data.local.AppDatabase.getDatabase(androidx.compose.ui.platform.LocalContext.current).bookDao(),
+                        com.example.lockinplanner.data.local.AppDatabase.getDatabase(androidx.compose.ui.platform.LocalContext.current).chapterDao(),
+                        com.example.lockinplanner.data.local.AppDatabase.getDatabase(androidx.compose.ui.platform.LocalContext.current).pageDao(),
+                        com.example.lockinplanner.data.local.AppDatabase.getDatabase(androidx.compose.ui.platform.LocalContext.current).shortDao()
+                    )
+                )
+                com.example.lockinplanner.ui.screens.AnalyticsScreen(
+                    viewModel = viewModel(factory = analyticsViewModelFactory),
+                    onBack = { currentDestination = AppDestinations.SETTINGS },
+                    modifier = Modifier.padding(innerPadding)
+                )
+            }
             AppDestinations.SETTINGS -> SettingsScreen(
                 viewModel = viewModel(factory = settingsViewModelFactory),
+                onNavigateToAnalytics = { currentDestination = AppDestinations.ANALYTICS },
                 modifier = Modifier.padding(innerPadding)
             )
         }
@@ -205,4 +224,5 @@ enum class AppDestinations(
     SEARCH("Search", Icons.Default.Search),
     NOTES("Notes", Icons.Default.Edit),
     SETTINGS("Settings", Icons.Default.Settings),
+    ANALYTICS("Analytics", Icons.Default.List),
 }

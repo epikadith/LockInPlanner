@@ -31,7 +31,7 @@ import androidx.room.AutoMigration
         PageEntity::class,
         ShortEntity::class
     ], 
-    version = 7,  
+    version = 8,  
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -65,12 +65,18 @@ abstract class AppDatabase : RoomDatabase() {
                     }
                 }
 
+                val MIGRATION_7_8 = object : androidx.room.migration.Migration(7, 8) {
+                    override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                        db.execSQL("ALTER TABLE tasks ADD COLUMN tag TEXT DEFAULT NULL")
+                    }
+                }
+
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "lockin_planner_database"
                 )
-                .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_7_8)
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance

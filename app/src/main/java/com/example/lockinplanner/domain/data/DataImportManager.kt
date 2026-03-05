@@ -111,7 +111,7 @@ class DataImportManager {
 
     private fun validateTaskSchema(json: JsonObject) {
          val allowed = setOf("id", "name", "description", "color", "repeatability", 
-                             "customRepeatDays", "isFloating", "startTime", "endTime", "reminders", "isThemeColor")
+                             "customRepeatDays", "isFloating", "startTime", "endTime", "reminders", "isThemeColor", "tag")
          val required = setOf("name", "startTime", "endTime") // Minimal required
          
          val keys = json.keySet()

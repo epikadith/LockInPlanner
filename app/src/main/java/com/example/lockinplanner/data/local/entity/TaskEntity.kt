@@ -23,5 +23,6 @@ data class TaskEntity(
     val startTime: Long, // UTC Timestamp or Minutes from Midnight
     val endTime: Long, // UTC Timestamp or Minutes from Midnight
     val reminders: List<Int> = emptyList(), // Minutes offset from start time (-10, 0, 15)
-    @androidx.room.ColumnInfo(defaultValue = "0") val isThemeColor: Boolean = false
+    @androidx.room.ColumnInfo(defaultValue = "0") val isThemeColor: Boolean = false,
+    @androidx.room.ColumnInfo(defaultValue = "NULL") val tag: String? = null
 )

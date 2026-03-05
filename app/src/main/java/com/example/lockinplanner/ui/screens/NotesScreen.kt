@@ -25,7 +25,7 @@ import com.example.lockinplanner.ui.viewmodel.NotesViewModel
 import kotlinx.coroutines.launch
 
 sealed class NotesNavigationState {
-    object Overview : NotesNavigationState()
+    data class Overview(val initialTab: Int = 0) : NotesNavigationState()
     data class ViewingShort(val shortId: String) : NotesNavigationState()
     data class ViewingBook(val bookId: String) : NotesNavigationState()
     data class ViewingChapter(val bookId: String, val chapterId: String) : NotesNavigationState()
@@ -39,11 +39,12 @@ fun NotesScreen(
     userPreferences: UserPreferences,
     modifier: Modifier = Modifier
 ) {
-    var navigationState by remember { mutableStateOf<NotesNavigationState>(NotesNavigationState.Overview) }
+    var navigationState by remember { mutableStateOf<NotesNavigationState>(NotesNavigationState.Overview(0)) }
 
     when (val currentState = navigationState) {
         is NotesNavigationState.Overview -> {
             NotesOverviewScreen(
+                initialTab = currentState.initialTab,
                 viewModel = viewModel,
                 settingsViewModel = settingsViewModel,
                 userPreferences = userPreferences,
@@ -56,7 +57,7 @@ fun NotesScreen(
             ShortWriteView(
                 shortId = currentState.shortId,
                 viewModel = viewModel,
-                onNavigateBack = { navigationState = NotesNavigationState.Overview },
+                onNavigateBack = { navigationState = NotesNavigationState.Overview(0) },
                 modifier = modifier
             )
         }
@@ -66,7 +67,7 @@ fun NotesScreen(
                 viewModel = viewModel,
                 settingsViewModel = settingsViewModel,
                 userPreferences = userPreferences,
-                onNavigateBack = { navigationState = NotesNavigationState.Overview },
+                onNavigateBack = { navigationState = NotesNavigationState.Overview(1) },
                 onNavigateToChapter = { chapterId -> navigationState = NotesNavigationState.ViewingChapter(currentState.bookId, chapterId) },
                 modifier = modifier
             )
@@ -96,6 +97,7 @@ fun NotesScreen(
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun NotesOverviewScreen(
+    initialTab: Int,
     viewModel: NotesViewModel,
     settingsViewModel: com.example.lockinplanner.ui.viewmodel.SettingsViewModel,
     userPreferences: UserPreferences,
@@ -105,7 +107,7 @@ fun NotesOverviewScreen(
 ) {
     val tabTitles = listOf("Shorts", "Books")
     val pagerState = androidx.compose.foundation.pager.rememberPagerState(
-        initialPage = 0,
+        initialPage = initialTab,
         pageCount = { tabTitles.size }
     )
     val coroutineScope = rememberCoroutineScope()

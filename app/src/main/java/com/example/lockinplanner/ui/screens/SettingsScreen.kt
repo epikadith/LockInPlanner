@@ -41,10 +41,20 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.*
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.text.font.FontWeight
+import androidx.core.graphics.ColorUtils
 
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
+    onNavigateToAnalytics: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val userPreferences by viewModel.userPreferences.collectAsState()
@@ -69,6 +79,73 @@ fun SettingsScreen(
             selectedOption = userPreferences.theme.name,
             onOptionSelected = { viewModel.updateTheme(AppTheme.valueOf(it)) }
         )
+
+
+
+        // Custom Theme Options
+        if (userPreferences.theme == AppTheme.Custom) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                var showPrimaryDialog by remember { mutableStateOf(false) }
+                val currentPrimary = userPreferences.customPrimaryColor?.let { androidx.compose.ui.graphics.Color(it.toULong()) } ?: MaterialTheme.colorScheme.background
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Background Colour (Primary)")
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(currentPrimary)
+                            .border(1.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                            .clickable { showPrimaryDialog = true }
+                    )
+                }
+
+                if (showPrimaryDialog) {
+                    CustomColorPickerDialog(
+                        initialColor = currentPrimary,
+                        onColorSelected = { viewModel.updateCustomPrimaryColor(it.value.toLong()) },
+                        onDismiss = { showPrimaryDialog = false }
+                    )
+                }
+
+                var showSecondaryDialog by remember { mutableStateOf(false) }
+                val currentSecondary = userPreferences.customSecondaryColor?.let { androidx.compose.ui.graphics.Color(it.toULong()) } ?: MaterialTheme.colorScheme.primary
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Foreground Colour (Secondary)")
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(currentSecondary)
+                            .border(1.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                            .clickable { showSecondaryDialog = true }
+                    )
+                }
+
+                if (showSecondaryDialog) {
+                    CustomColorPickerDialog(
+                        initialColor = currentSecondary,
+                        primaryColorConstraint = currentPrimary,
+                        onColorSelected = { viewModel.updateCustomSecondaryColor(it.value.toLong()) },
+                        onDismiss = { showSecondaryDialog = false }
+                    )
+                }
+            }
+        }
 
         // Date Format
         val dateFormats = listOf("dd/MM/yyyy", "MM/dd/yyyy", "yyyy/MM/dd")
@@ -160,6 +237,13 @@ fun SettingsScreen(
 
         // Data Management Section
         SectionHeader("Data Management")
+        
+        OutlinedButton(
+            onClick = onNavigateToAnalytics,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+        ) {
+            Text("Open Analytics")
+        }
         
     val context = LocalContext.current
     var showExportDialog by remember { mutableStateOf(false) }
@@ -599,5 +683,93 @@ fun SettingsToggle(
     ) {
         Text(label, style = MaterialTheme.typography.bodyLarge)
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+fun CustomColorPickerDialog(
+    initialColor: androidx.compose.ui.graphics.Color,
+    primaryColorConstraint: androidx.compose.ui.graphics.Color? = null,
+    onColorSelected: (androidx.compose.ui.graphics.Color) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var red by remember { mutableStateOf(initialColor.red) }
+    var green by remember { mutableStateOf(initialColor.green) }
+    var blue by remember { mutableStateOf(initialColor.blue) }
+
+    val currentColor = androidx.compose.ui.graphics.Color(red, green, blue)
+    var isValid = true
+    var contrastRatio = 0.0
+
+    if (primaryColorConstraint != null) {
+        contrastRatio = ColorUtils.calculateContrast(currentColor.toArgb(), primaryColorConstraint.toArgb())
+        isValid = contrastRatio >= 3.0
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Select Color") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(64.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(currentColor)
+                        .border(1.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(8.dp))
+                )
+
+                if (primaryColorConstraint != null) {
+                    Text(
+                        text = if (isValid) "Contrast OK: ${String.format("%.1f", contrastRatio)}:1" else "Low Contrast: ${String.format("%.1f", contrastRatio)}:1\nMust be >= 3.0",
+                        color = if (isValid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                ColorSliderRow("R", red, { red = it })
+                ColorSliderRow("G", green, { green = it })
+                ColorSliderRow("B", blue, { blue = it })
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onColorSelected(currentColor)
+                    onDismiss()
+                },
+                enabled = isValid
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun ColorSliderRow(label: String, value: Float, onValueChange: (Float) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, fontWeight = FontWeight.Bold, modifier = Modifier.width(20.dp))
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = 0f..1f,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = (value * 255).toInt().toString(),
+            modifier = Modifier.width(32.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.End
+        )
     }
 }

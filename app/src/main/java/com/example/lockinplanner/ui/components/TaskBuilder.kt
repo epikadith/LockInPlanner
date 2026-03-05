@@ -76,12 +76,14 @@ fun TaskBuilder(
     is24h: Boolean = true,
     timeZone: TimeZone = TimeZone.getDefault(),
     taskToEdit: Task? = null,
-    hapticsEnabled: Boolean = true
+    hapticsEnabled: Boolean = true,
+    availableTags: List<String> = emptyList()
 ) {
     val view = LocalView.current
     Dialog(onDismissRequest = onDismiss) {
         var taskName by remember { mutableStateOf(taskToEdit?.name ?: "") }
         var taskDescription by remember { mutableStateOf(taskToEdit?.description ?: "") }
+        var tag by remember { mutableStateOf(taskToEdit?.tag ?: "") }
         val colors = listOf(Color.Red, Color.Blue, Color.Green, Color.Yellow, Color.Magenta, Color.Cyan)
         var selectedColor by remember { mutableStateOf(colors.find { it.toArgb() == taskToEdit?.color?.toArgb() } ?: taskToEdit?.color ?: colors.first()) }
 
@@ -170,6 +172,7 @@ fun TaskBuilder(
 
         var reminders by remember { mutableStateOf(taskToEdit?.reminders ?: emptyList<Int>()) }
         var showReminderDialog by remember { mutableStateOf(false) }
+        var showTagDialog by remember { mutableStateOf(false) }
 
         // User Requested: Validation updates. 
         // Logic: Start == End is NOT allowed for ANY type.
@@ -424,6 +427,15 @@ fun TaskBuilder(
                     }
                 }
 
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(onClick = { showTagDialog = true }) { Text("Tag") }
+                    Text(text = if (tag.isNotBlank()) tag else "None")
+                }
+
                 TextField(value = taskDescription, onValueChange = { taskDescription = it }, label = { Text("Description (Optional)") }, modifier = Modifier.fillMaxWidth())
 
                 Button(
@@ -481,7 +493,8 @@ fun TaskBuilder(
                             startTime = startTimeVal,
                             endTime = endTimeVal,
                             reminders = reminders,
-                            isThemeColor = isThemeColor
+                            isThemeColor = isThemeColor,
+                            tag = tag.takeIf { it.isNotBlank() }
                         )
                         onSave(task)
                     },
@@ -688,6 +701,60 @@ fun TaskBuilder(
             },
             dismissButton = {
                 TextButton(onClick = { showReminderDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showTagDialog) {
+        var tempTag by remember { mutableStateOf(tag) }
+        val filteredTags = availableTags.filter { it.contains(tempTag, ignoreCase = true) && it != tempTag }
+        
+        AlertDialog(
+            onDismissRequest = { showTagDialog = false },
+            title = { Text("Set Tag") },
+            text = {
+                Column {
+                    TextField(
+                        value = tempTag,
+                        onValueChange = { tempTag = it },
+                        label = { Text("Tag Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    
+                    if (filteredTags.isNotEmpty()) {
+                        Spacer(modifier = Modifier.size(8.dp))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(filteredTags) { suggestion ->
+                                Box(
+                                    modifier = Modifier
+                                        .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
+                                        .clickable { tempTag = suggestion }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Text(suggestion, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Row {
+                    if (tag.isNotBlank()) {
+                         TextButton(onClick = { 
+                             tag = ""
+                             showTagDialog = false 
+                         }) { Text("Clear") }
+                    }
+                    TextButton(onClick = {
+                        tag = tempTag.trim()
+                        showTagDialog = false
+                    }) { Text("Save") }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTagDialog = false }) { Text("Cancel") }
             }
         )
     }

@@ -6,5 +6,10 @@ enum class AppTheme {
     Dark,
     Red,
     Green,
-    Blue
+    Blue,
+    Yellow,
+    Orange,
+    Olive,
+    Navy,
+    Custom
 }

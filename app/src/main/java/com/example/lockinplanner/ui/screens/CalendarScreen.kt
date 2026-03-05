@@ -59,6 +59,7 @@ fun CalendarScreen(
     val currentMonth by viewModel.currentMonth.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
     val showDaily by viewModel.showDaily.collectAsState()
+    val uniqueTags by viewModel.uniqueTags.collectAsState()
     
     val dateFormatString = userPreferences.dateFormat
     val is24h = userPreferences.timeFormat24h
@@ -68,9 +69,11 @@ fun CalendarScreen(
 
     val timeZone = com.example.lockinplanner.domain.manager.DateTimeManager.getDisplayTimeZone(userPreferences)
     
+    var selectedTagFilter by remember { mutableStateOf<String?>(null) }
+
     // Project tasks into the selected timezone for correct display hours
-    val projectedTasks = remember(tasks, timeZone) {
-        tasks.map { task ->
+    val projectedTasks = remember(tasks, timeZone, selectedTagFilter) {
+        tasks.filter { selectedTagFilter == null || it.tag == selectedTagFilter }.map { task ->
             if (task.isFloating) {
                 // Formatting for floating tasks is already correct (H:M derived from minutes)
                 // Assuming toDomain populated startHour/Minute correctly from minutes.
@@ -144,7 +147,8 @@ fun CalendarScreen(
             is24h = is24h,
             timeZone = timeZone,
             taskToEdit = taskToEdit,
-            hapticsEnabled = userPreferences.hapticsEnabled
+            hapticsEnabled = userPreferences.hapticsEnabled,
+            availableTags = uniqueTags
         )
     }
 
@@ -265,6 +269,33 @@ fun CalendarScreen(
                 }
                 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    var expanded by remember { mutableStateOf(false) }
+
+                    Box {
+                        Text(
+                            text = selectedTagFilter ?: "All",
+                            style = if (selectedTagFilter == null) MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) else MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier
+                                .clickable { expanded = true }
+                                .padding(end = 16.dp, top = 8.dp, bottom = 8.dp)
+                        )
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("All", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)) },
+                                onClick = { selectedTagFilter = null; expanded = false }
+                            )
+                            uniqueTags.forEach { tag ->
+                                DropdownMenuItem(
+                                    text = { Text(tag) },
+                                    onClick = { selectedTagFilter = tag; expanded = false }
+                                )
+                            }
+                        }
+                    }
+
                     Text("Show Daily", style = MaterialTheme.typography.bodySmall)
                     Switch(
                         checked = showDaily,

@@ -43,6 +43,8 @@ class NotesRepository(
     }
 
     // --- Chapters ---
+    val allChapters: Flow<List<ChapterEntity>> = chapterDao.getAllChapters()
+
     fun getChaptersForBook(bookId: String): Flow<List<ChapterEntity>> {
         return chapterDao.getChaptersForBook(bookId)
     }
@@ -68,6 +70,8 @@ class NotesRepository(
     }
 
     // --- Pages ---
+    val allPages: Flow<List<PageEntity>> = pageDao.getAllPages()
+
     fun getPagesForChapter(chapterId: String): Flow<List<PageEntity>> {
         return pageDao.getPagesForChapter(chapterId)
     }

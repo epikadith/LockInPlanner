@@ -17,6 +17,8 @@ class TimelineViewModel(private val repository: TaskRepository) : ViewModel() {
         entities.map { it.toDomain() }
     }
 
+    val uniqueTags: Flow<List<String>> = repository.uniqueTags
+
     fun getTasksForDate(date: Long, nextDate: Long, timeZoneId: String): Flow<List<Task>> {
         return repository.getTasksForDate(date, nextDate, timeZoneId).map { entities ->
             entities.map { it.toDomain() }

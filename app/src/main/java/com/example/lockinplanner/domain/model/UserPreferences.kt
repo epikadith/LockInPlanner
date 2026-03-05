@@ -22,5 +22,9 @@ data class UserPreferences(
     // Notes Display Preferences
     val shortsDisplayMode: Int = 0,
     val bookViewColumnCount: Int = 2,
-    val chapterViewColumnCount: Int = 2
+    val chapterViewColumnCount: Int = 2,
+    // Custom Theme
+    val customPrimaryColor: Long? = null,
+    val customSecondaryColor: Long? = null,
+    val customIsDarkBackground: Boolean = true
 )

@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 import kotlinx.coroutines.flow.first
+import androidx.compose.ui.graphics.toArgb
 
 class SettingsViewModel(
     private val userPreferencesRepository: UserPreferencesRepository,
@@ -247,6 +248,29 @@ class SettingsViewModel(
         val currentTime = System.currentTimeMillis()
         taskRepository.deletePastTasks(currentTime)
         launch(kotlinx.coroutines.Dispatchers.Main) { onResult() }
+    }
+
+    fun updateCustomPrimaryColor(color: Long?) = viewModelScope.launch {
+        userPreferencesRepository.updateCustomPrimaryColor(color)
+        if (color != null) {
+            try {
+                val composeColor = androidx.compose.ui.graphics.Color(color.toULong())
+                val argbInt = composeColor.toArgb()
+                val primaryLuminance = androidx.core.graphics.ColorUtils.calculateLuminance(argbInt)
+                val baseSecondary = if (primaryLuminance > 0.5) androidx.compose.ui.graphics.Color(0xFF1C1B1F) else androidx.compose.ui.graphics.Color.White
+                userPreferencesRepository.updateCustomSecondaryColor(baseSecondary.value.toLong())
+            } catch (e: Throwable) {
+                // Ignore luminance parse errors to prevent UI freeze
+            }
+        }
+    }
+
+    fun updateCustomSecondaryColor(color: Long?) = viewModelScope.launch {
+        userPreferencesRepository.updateCustomSecondaryColor(color)
+    }
+
+    fun updateCustomIsDarkBackground(isDark: Boolean) = viewModelScope.launch {
+        userPreferencesRepository.updateCustomIsDarkBackground(isDark)
     }
 }
 

@@ -14,6 +14,9 @@ interface PageDao {
     @Query("SELECT * FROM pages WHERE chapterId = :chapterId ORDER BY createdAt ASC")
     fun getPagesForChapter(chapterId: String): Flow<List<PageEntity>>
 
+    @Query("SELECT * FROM pages")
+    fun getAllPages(): Flow<List<PageEntity>>
+
     @Query("SELECT * FROM pages WHERE id = :id")
     suspend fun getPageById(id: String): PageEntity?
 

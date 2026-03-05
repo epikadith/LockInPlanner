@@ -32,6 +32,9 @@ class CalendarViewModel(
         .map { entities -> entities.map { it.toDomain() } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val uniqueTags: StateFlow<List<String>> = repository.uniqueTags
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     fun nextMonth() {
         val next = _currentMonth.value.clone() as Calendar
         next.add(Calendar.MONTH, 1)

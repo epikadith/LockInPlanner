@@ -90,6 +90,7 @@ fun TimelineScreen(
 
     // Query DB with Start/End Range (UTC Timestamps) + TimeZone ID (for Floating day check)
     val tasks by viewModel.getTasksForDate(todayDateParams.first, todayDateParams.second, timeZone.id).collectAsState(initial = emptyList())
+    val tagList by viewModel.uniqueTags.collectAsState(initial = emptyList())
     
     // Position/Project Tasks
     val positionedTasks = remember(tasks, todayDateParams, timeZone) {
@@ -179,7 +180,8 @@ fun TimelineScreen(
             is24h = is24h,
             timeZone = com.example.lockinplanner.domain.manager.DateTimeManager.getDisplayTimeZone(userPreferences),
             taskToEdit = taskToEdit,
-            hapticsEnabled = userPreferences.hapticsEnabled
+            hapticsEnabled = userPreferences.hapticsEnabled,
+            availableTags = tagList
         )
     }
 

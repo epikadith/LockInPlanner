@@ -82,4 +82,6 @@ class TaskRepository(
     fun searchTasks(query: String): Flow<List<TaskEntity>> {
         return taskDao.searchTasks(query)
     }
+
+    val uniqueTags: Flow<List<String>> = taskDao.getAllTags()
 }

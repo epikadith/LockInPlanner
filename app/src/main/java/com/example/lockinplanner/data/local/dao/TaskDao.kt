@@ -48,4 +48,7 @@ interface TaskDao {
 
     @Query("SELECT * FROM tasks WHERE name LIKE '%' || :searchQuery || '%' OR description LIKE '%' || :searchQuery || '%'")
     fun searchTasks(searchQuery: String): Flow<List<TaskEntity>>
+
+    @Query("SELECT DISTINCT tag FROM tasks WHERE tag IS NOT NULL AND tag != ''")
+    fun getAllTags(): Flow<List<String>>
 }

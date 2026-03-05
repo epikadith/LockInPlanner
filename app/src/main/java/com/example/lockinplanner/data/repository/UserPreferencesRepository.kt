@@ -44,6 +44,11 @@ class UserPreferencesRepository(private val context: Context) {
         val SHORTS_DISPLAY_MODE = androidx.datastore.preferences.core.intPreferencesKey("shorts_display_mode")
         val BOOK_VIEW_COLUMN_COUNT = androidx.datastore.preferences.core.intPreferencesKey("book_view_column_count")
         val CHAPTER_VIEW_COLUMN_COUNT = androidx.datastore.preferences.core.intPreferencesKey("chapter_view_column_count")
+
+        // Custom Theme
+        val CUSTOM_PRIMARY_COLOR = androidx.datastore.preferences.core.longPreferencesKey("custom_primary_color")
+        val CUSTOM_SECONDARY_COLOR = androidx.datastore.preferences.core.longPreferencesKey("custom_secondary_color")
+        val CUSTOM_IS_DARK_BACKGROUND = booleanPreferencesKey("custom_is_dark_background")
     }
 
     val userPreferencesFlow: Flow<UserPreferences> = context.dataStore.data
@@ -90,7 +95,10 @@ class UserPreferencesRepository(private val context: Context) {
                 undoDuration = preferences[PreferencesKeys.UNDO_DURATION] ?: 5,
                 shortsDisplayMode = preferences[PreferencesKeys.SHORTS_DISPLAY_MODE] ?: 0,
                 bookViewColumnCount = preferences[PreferencesKeys.BOOK_VIEW_COLUMN_COUNT] ?: 2,
-                chapterViewColumnCount = preferences[PreferencesKeys.CHAPTER_VIEW_COLUMN_COUNT] ?: 2
+                chapterViewColumnCount = preferences[PreferencesKeys.CHAPTER_VIEW_COLUMN_COUNT] ?: 2,
+                customPrimaryColor = preferences[PreferencesKeys.CUSTOM_PRIMARY_COLOR],
+                customSecondaryColor = preferences[PreferencesKeys.CUSTOM_SECONDARY_COLOR],
+                customIsDarkBackground = preferences[PreferencesKeys.CUSTOM_IS_DARK_BACKGROUND] ?: true
             )
         }
 
@@ -211,6 +219,32 @@ class UserPreferencesRepository(private val context: Context) {
     suspend fun updateChapterViewColumnCount(count: Int) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.CHAPTER_VIEW_COLUMN_COUNT] = count
+        }
+    }
+
+    suspend fun updateCustomPrimaryColor(color: Long?) {
+        context.dataStore.edit { preferences ->
+            if (color != null) {
+                preferences[PreferencesKeys.CUSTOM_PRIMARY_COLOR] = color
+            } else {
+                preferences.remove(PreferencesKeys.CUSTOM_PRIMARY_COLOR)
+            }
+        }
+    }
+
+    suspend fun updateCustomSecondaryColor(color: Long?) {
+        context.dataStore.edit { preferences ->
+            if (color != null) {
+                preferences[PreferencesKeys.CUSTOM_SECONDARY_COLOR] = color
+            } else {
+                preferences.remove(PreferencesKeys.CUSTOM_SECONDARY_COLOR)
+            }
+        }
+    }
+
+    suspend fun updateCustomIsDarkBackground(isDark: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.CUSTOM_IS_DARK_BACKGROUND] = isDark
         }
     }
 }

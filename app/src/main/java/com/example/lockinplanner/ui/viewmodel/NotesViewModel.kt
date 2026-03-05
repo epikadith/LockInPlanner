@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 
 class NotesViewModel(
     private val notesRepository: NotesRepository
@@ -55,6 +56,20 @@ class NotesViewModel(
 
     fun getShortFlowById(shortId: String) = notesRepository.getShortFlowById(shortId)
 
+    // --- Caching for complex Undo flows ---
+    data class DeletedBookCache(
+        val book: BookEntity,
+        val chapters: List<ChapterEntity>,
+        val pages: List<PageEntity>
+    )
+    private var lastDeletedBookCache: DeletedBookCache? = null
+
+    data class DeletedChapterCache(
+        val chapter: ChapterEntity,
+        val pages: List<PageEntity>
+    )
+    private var lastDeletedChapterCache: DeletedChapterCache? = null
+
     // --- Book Operations ---
     fun createBook(title: String) {
         viewModelScope.launch {
@@ -70,6 +85,13 @@ class NotesViewModel(
 
     fun deleteBook(book: BookEntity) {
         viewModelScope.launch {
+            val chapters = notesRepository.getChaptersForBook(book.id).first()
+            val pages = mutableListOf<PageEntity>()
+            for (chapter in chapters) {
+                pages.addAll(notesRepository.getPagesForChapter(chapter.id).first())
+            }
+            lastDeletedBookCache = DeletedBookCache(book, chapters, pages)
+            
             notesRepository.deleteBook(book)
         }
     }
@@ -77,6 +99,11 @@ class NotesViewModel(
     fun restoreBook(book: BookEntity) {
         viewModelScope.launch {
             notesRepository.insertBook(book)
+            if (lastDeletedBookCache?.book?.id == book.id) {
+                lastDeletedBookCache?.chapters?.forEach { notesRepository.insertChapter(it) }
+                lastDeletedBookCache?.pages?.forEach { notesRepository.insertPage(it) }
+                lastDeletedBookCache = null
+            }
         }
     }
 
@@ -95,6 +122,9 @@ class NotesViewModel(
 
     fun deleteChapter(chapter: ChapterEntity) {
         viewModelScope.launch {
+            val pages = notesRepository.getPagesForChapter(chapter.id).first()
+            lastDeletedChapterCache = DeletedChapterCache(chapter, pages)
+            
             notesRepository.deleteChapter(chapter)
         }
     }
@@ -102,6 +132,10 @@ class NotesViewModel(
     fun restoreChapter(chapter: ChapterEntity) {
         viewModelScope.launch {
             notesRepository.insertChapter(chapter)
+            if (lastDeletedChapterCache?.chapter?.id == chapter.id) {
+                lastDeletedChapterCache?.pages?.forEach { notesRepository.insertPage(it) }
+                lastDeletedChapterCache = null
+            }
         }
     }
 
